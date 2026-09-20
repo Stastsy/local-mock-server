@@ -23,7 +23,7 @@ npm run dev -- --spec examples/petstore.yaml --port 4010 --seed 42
 | `src/**`, `tests/unit/**` | Developer | read only |
 | `package.json`, `tsconfig.json`, `vitest.config.ts`, `.claude/**` | Orchestrator | read only |
 
-**Writing into a directory you do not own is a process violation, not a shortcut.**
+**WRITING INTO A DIRECTORY YOU DO NOT OWN IS A PROCESS VIOLATION, NOT A SHORTCUT.**
 It is detected by the orchestrator via `git diff --name-only` and reverted.
 
 In particular: the Developer **must not create, edit, delete, rename or skip** anything under
@@ -46,7 +46,7 @@ In particular: the Developer **must not create, edit, delete, rename or skip** a
 ## Conflict resolution
 
 If a test appears to contradict a requirement, or a requirement appears wrong:
-**stop and report it to the orchestrator.** Do not resolve it by editing the other side's artifact.
+**STOP AND REPORT IT TO THE ORCHESTRATOR.** Do not resolve it by editing the other side's artifact.
 Only the user approves changes to an already-approved requirement or acceptance test.
 
 ## Conventions
