@@ -173,6 +173,22 @@ describe('REQ-004 — the document must be a valid OpenAPI 3.0 document', () => 
     expect(error.code).toBe('SPEC_INVALID');
   });
 
+  it('REQ-004: tolerates example and examples on the same media type and serves the REQ-033 payload', async () => {
+    // The one relaxed meta-schema constraint (ExampleXORExamples). The document must load rather
+    // than reject with SPEC_INVALID, and REQ-033 level 1 then decides the payload.
+    const server = await startServer({ specPath: fixture('tolerated-example-xor-examples.yaml') });
+    try {
+      const res = await request(server.url, '/both');
+      expect({ status: res.status, body: res.json, payload: res.header('x-mock-payload') }).toEqual({
+        status: 200,
+        body: { p: 'content-example' },
+        payload: 'example',
+      });
+    } finally {
+      await server.stop();
+    }
+  });
+
   it('REQ-004: resolves for a valid 3.0.x document', async () => {
     const server = await create({ specPath: fixture('minimal.yaml'), port: 0 });
     await server.stop();

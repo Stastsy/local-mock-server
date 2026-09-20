@@ -1,0 +1,33 @@
+# REQ-004: the one tolerated meta-schema exception. This document is otherwise valid, but its
+# media type object declares BOTH `example` and `examples`, which the OpenAPI 3.0 meta-schema's
+# `ExampleXORExamples` constraint forbids. `createServer` must resolve anyway, and REQ-033 then
+# decides which value is served (level 1 — the content-level `example` — wins).
+#
+# Deliberately kept to this single violation and nothing else: `payload-precedence.yaml` carries
+# the same construct but also an example that does not satisfy its own schema, so a load-time
+# failure there could not be attributed to one cause or the other.
+openapi: 3.0.3
+info:
+  title: Tolerated example XOR examples
+  version: 1.0.0
+paths:
+  /both:
+    get:
+      operationId: getBoth
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [p]
+                properties:
+                  p:
+                    type: string
+              example:
+                p: content-example
+              examples:
+                named:
+                  value:
+                    p: named-entry

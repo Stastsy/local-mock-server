@@ -34,8 +34,27 @@ describe('REQ-033 — payload precedence within the selected media type', () => 
   });
 
   it('REQ-033: a content-level example wins over an examples map', async () => {
+    // Both keywords on one media type is the combination REQ-004 tolerates; level 1 wins.
     const res = await request(precedence().url, '/example-and-examples');
-    expect(res.json).toEqual({ p: 'content-example' });
+    expect({ body: res.json, payload: res.header('x-mock-payload') }).toEqual({
+      body: { p: 'content-example' },
+      payload: 'example',
+    });
+  });
+
+  it('REQ-033: Prefer: example=<name> overrides the precedence order on that same operation', async () => {
+    const res = await request(precedence().url, '/example-and-examples', {
+      headers: { prefer: 'example=first' },
+    });
+    const expected = await documentedExample(fixture('payload-precedence.yaml'), {
+      path: '/example-and-examples',
+      name: 'first',
+    });
+    expect({ status: res.status, body: res.json, payload: res.header('x-mock-payload') }).toEqual({
+      status: 200,
+      body: expected,
+      payload: 'example',
+    });
   });
 
   it('REQ-033: schema.example is used when neither example nor examples is declared', async () => {

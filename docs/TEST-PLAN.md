@@ -52,7 +52,7 @@ a seeded value.
 
 ### 1.3 Fixtures are small and single-purpose
 
-52 fixtures in `qa/fixtures/`, one concern each — a valid minimal API, one rejected construct per
+53 fixtures in `qa/fixtures/`, one concern each — a valid minimal API, one rejected construct per
 file, one `servers[0].url` shape per file, one payload-precedence case per operation. A failure
 therefore names its own cause. `examples/petstore.yaml` is used directly wherever a requirement is
 written against it (REQ-002, REQ-013..REQ-017, REQ-019..REQ-024, REQ-033, REQ-034, REQ-046,
@@ -90,9 +90,9 @@ the test names by the runner's JSON reporter, not maintained by hand, so it cann
 
 ## 3. Sizing
 
-The requirements carry 199 acceptance criteria after the Stage-2 amendments to REQ-044, REQ-051,
-REQ-052 and REQ-054; the suite has **267 tests**. The default is one
-test per criterion. The excess is entirely equivalence-class expansion of single criteria, never
+The requirements carry 201 acceptance criteria after the Stage-2 amendments to REQ-044, REQ-051,
+REQ-052, REQ-054 and — during implementation — REQ-004 and REQ-033; the suite has **269 tests**.
+The default is one test per criterion. The excess is entirely equivalence-class expansion of single criteria, never
 combinatorial exploration of several criteria together:
 
 | Criterion expanded | Tests | Why |
@@ -147,14 +147,14 @@ Test files mirror requirement groups, so a failing group is diagnosable from the
 
 ## 5. Traceability matrix
 
-Derived from test names. 267 tests, 58 of 58 requirements covered, **no requirement with zero tests**.
+Derived from test names. 269 tests, 58 of 58 requirements covered, **no requirement with zero tests**.
 
 | Requirement | Tests | Spec file |
 |---|---|---|
 | REQ-001 | 4 | `spec-loading.spec.ts` |
 | REQ-002 | 2 | `spec-loading.spec.ts` |
 | REQ-003 | 11 | `spec-loading.spec.ts` |
-| REQ-004 | 5 | `spec-loading.spec.ts` |
+| REQ-004 | 6 | `spec-loading.spec.ts` |
 | REQ-005 | 3 | `spec-loading.spec.ts` |
 | REQ-006 | 9 | `spec-loading.spec.ts` |
 | REQ-007 | 3 | `spec-loading.spec.ts` |
@@ -183,7 +183,7 @@ Derived from test names. 267 tests, 58 of 58 requirements covered, **no requirem
 | REQ-030 | 4 | `response-selection.spec.ts` |
 | REQ-031 | 2 | `response-selection.spec.ts` |
 | REQ-032 | 2 | `response-selection.spec.ts` |
-| REQ-033 | 6 | `payload-and-prefer.spec.ts` |
+| REQ-033 | 7 | `payload-and-prefer.spec.ts` |
 | REQ-034 | 5 | `payload-and-prefer.spec.ts` |
 | REQ-035 | 14 | `payload-and-prefer.spec.ts` |
 | REQ-036 | 3 | `payload-and-prefer.spec.ts` |
@@ -222,9 +222,9 @@ and group `assertionResults[].title` by its first seven characters.
 
 ## 6. Requirements review — items raised, and how they were closed
 
-Four items were raised against `docs/REQUIREMENTS.md` in the first draft of this plan. Three were
-genuine gaps in the requirements and have been amended; one was a mistake in this suite. Nothing in
-`docs/REQUIREMENTS.md` was edited by QA.
+Five items were raised against `docs/REQUIREMENTS.md` — four by QA in the first draft of this plan,
+one by the Developer during implementation. Four were genuine gaps in the requirements and have been
+amended; one was a mistake in this suite. Nothing in `docs/REQUIREMENTS.md` was edited by QA.
 
 ### 6.1 REQ-054 and REQ-052 named an operation that could not satisfy their criteria — **amended**
 
@@ -274,13 +274,33 @@ bound URL; at any other level, including the CLI default `info`, stdout contains
 further logger lines are permitted, with nothing asserted about their number, order or content.
 REQ-049 is unchanged. Both criteria have a test.
 
-### 6.5 REQ-008 and the load-time HTTP status
+### 6.5 REQ-033's precedence rule governed a document REQ-004 rejected — **amended**
+
+Raised by the Developer during implementation, not by QA. REQ-033 level 1 beats level 2, but a media
+type declaring both `example` and `examples` violates the OpenAPI 3.0 meta-schema's
+`ExampleXORExamples` constraint, which REQ-004 required rejecting — so the precedence rule could
+never fire.
+
+**Resolved.** REQ-004 now relaxes that one constraint and no other: such a document loads, and
+REQ-033 decides the payload. Two criteria were added and both have a test —
+`REQ-004: tolerates example and examples on the same media type and serves the REQ-033 payload`
+(its own fixture, `tolerated-example-xor-examples.yaml`, carrying that single violation and nothing
+else, so a load failure could not be attributed elsewhere) and
+`REQ-033: Prefer: example=<name> overrides the precedence order on that same operation`. The
+existing precedence test also now asserts `X-Mock-Payload: example`, which the amended criterion
+adds.
+
+Verified independently of the suite that the relaxation is surgical: a document with no
+`responses`, a `paths` key not beginning with `/`, an unknown root field, and two path templates
+differing only in variable names all still reject with `SPEC_INVALID`.
+
+### 6.6 REQ-008 and the load-time HTTP status
 
 REQ-008 states that the HTTP `status` of a load-time `MockError` "is not part of the contract; no
 requirement or test may depend on it". No test asserts it. Noted here only so that its absence from
 the matrix is deliberate rather than an omission.
 
-### 6.6 REQ-057's second criterion is not testable by construction
+### 6.7 REQ-057's second criterion is not testable by construction
 
 > **Given** `logLevel: 'error'` or higher, **then** log output is permitted; its format and content
 > are not specified and **no test may assert on it.**
@@ -336,10 +356,13 @@ npm run test:acceptance     # the acceptance project only
 npm test                    # unit + acceptance
 ```
 
-Expected result **before any implementation exists**: 267 tests, 240 failing on assertions about
-status, headers, body or error code, and 27 passing. The 27 are not vacuous — they are criteria the
-bootstrap skeleton already satisfies: the lifecycle contract (REQ-056, 6 tests), silence by default
-(REQ-057), startup cost (REQ-058), `createServer` resolving for a valid 3.0.x document (REQ-003 ×5,
-REQ-004, REQ-006 ×1), and the CLI's argument handling, usage output and startup line (REQ-047 ×4,
-REQ-048 ×2, REQ-049 ×2, REQ-050 ×1, REQ-051 ×3). There are **no** failures from TypeScript errors,
-bad imports, timeouts, hanging servers or connection refusals.
+**Against the implementation: 269 passing, 0 failing.**
+
+**Against the bootstrap skeleton**, which is how this suite was written and first run, the expected
+result was 267 tests with 240 failing on assertions about status, headers, body or error code and 27
+passing — never on TypeScript errors, bad imports, timeouts, hanging servers or connection refusals.
+The 27 were not vacuous: they were criteria the skeleton already satisfied — the lifecycle contract
+(REQ-056, 6 tests), silence by default (REQ-057), startup cost (REQ-058), `createServer` resolving
+for a valid 3.0.x document (REQ-003 ×5, REQ-004, REQ-006 ×1), and the CLI's argument handling, usage
+output and startup line (REQ-047 ×4, REQ-048 ×2, REQ-049 ×2, REQ-050 ×1, REQ-051 ×3). That baseline
+is recorded because a suite that had passed against a skeleton would have proved nothing.
