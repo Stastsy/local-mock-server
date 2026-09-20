@@ -1,0 +1,60 @@
+# REQ-033: payload precedence within the selected media type —
+#   content[mt].example > first of content[mt].examples > schema.example > generated data.
+openapi: 3.0.3
+info:
+  title: Payload precedence
+  version: 1.0.0
+paths:
+  /example-and-examples:
+    get:
+      operationId: exampleAndExamples
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Marker'
+              example:
+                p: content-example
+              examples:
+                first:
+                  value:
+                    p: named-first
+  /schema-example:
+    get:
+      operationId: schemaExample
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Marker'
+                example:
+                  p: schema-example
+  /bad-example:
+    get:
+      operationId: badExample
+      responses:
+        '200':
+          description: an example that does not satisfy its own schema
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [n]
+                properties:
+                  n:
+                    type: integer
+              example:
+                n: not-an-integer
+components:
+  schemas:
+    Marker:
+      type: object
+      required: [p]
+      properties:
+        p:
+          type: string

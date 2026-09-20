@@ -1,0 +1,50 @@
+# REQ-012 / REQ-037: a deprecated operation is served normally and marked with Deprecation: true.
+openapi: 3.0.3
+info:
+  title: Deprecation
+  version: 1.0.0
+paths:
+  /old:
+    get:
+      operationId: getOld
+      deprecated: true
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok]
+                properties:
+                  ok:
+                    type: boolean
+  /current:
+    get:
+      operationId: getCurrent
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok]
+                properties:
+                  ok:
+                    type: boolean
+  /explicitly-not-deprecated:
+    get:
+      operationId: getNotDeprecated
+      deprecated: false
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok]
+                properties:
+                  ok:
+                    type: boolean

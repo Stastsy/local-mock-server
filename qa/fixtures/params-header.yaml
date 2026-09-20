@@ -1,0 +1,75 @@
+# REQ-021: header parameters. `Accept`, `Content-Type`, `Authorization` and `Prefer` are declared
+# here as required header parameters on purpose: declaring them is not an error, and the server
+# must never validate them, so a request that omits all four still succeeds.
+openapi: 3.0.3
+info:
+  title: Header parameters
+  version: 1.0.0
+paths:
+  /h:
+    get:
+      operationId: getH
+      parameters:
+        - name: X-Request-Id
+          in: header
+          required: true
+          schema:
+            type: string
+            minLength: 1
+        - name: X-Count
+          in: header
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 10
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok]
+                properties:
+                  ok:
+                    type: boolean
+  /reserved-headers:
+    get:
+      operationId: getReservedHeaders
+      parameters:
+        - name: Accept
+          in: header
+          required: true
+          schema:
+            type: string
+            enum: [application/never-sent]
+        - name: Content-Type
+          in: header
+          required: true
+          schema:
+            type: string
+            enum: [application/never-sent]
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+            enum: [never-sent]
+        - name: Prefer
+          in: header
+          required: true
+          schema:
+            type: string
+            enum: [never-sent]
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok]
+                properties:
+                  ok:
+                    type: boolean

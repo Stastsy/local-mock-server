@@ -1,0 +1,18 @@
+# REQ-004 / section 6: `webhooks` is a 3.1-only root field; in a 3.0 document it is an unknown root field.
+openapi: 3.0.3
+info:
+  title: Webhooks in a 3.0 document
+  version: 1.0.0
+webhooks:
+  petCreated:
+    post:
+      responses:
+        '200':
+          description: ok
+paths:
+  /pets:
+    get:
+      operationId: listPets
+      responses:
+        '200':
+          description: ok

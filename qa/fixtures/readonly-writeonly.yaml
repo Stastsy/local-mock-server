@@ -1,0 +1,44 @@
+# REQ-025 / REQ-039: readOnly is dropped from `required` for request validation; writeOnly is
+# never present in a generated response body, even when it is listed in `required`.
+openapi: 3.0.3
+info:
+  title: readOnly and writeOnly
+  version: 1.0.0
+paths:
+  /accounts:
+    post:
+      operationId: createAccount
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [id, name]
+              properties:
+                id:
+                  type: integer
+                  minimum: 1
+                  readOnly: true
+                name:
+                  type: string
+                  minLength: 1
+      responses:
+        '201':
+          description: created
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id, name, password]
+                properties:
+                  id:
+                    type: integer
+                    minimum: 1
+                  name:
+                    type: string
+                    minLength: 1
+                  password:
+                    type: string
+                    minLength: 1
+                    writeOnly: true

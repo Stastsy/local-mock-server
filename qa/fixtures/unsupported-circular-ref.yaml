@@ -1,0 +1,26 @@
+# REQ-010: a schema that references itself through a property -> construct token `circularRef`.
+openapi: 3.0.3
+info:
+  title: Circular ref
+  version: 1.0.0
+paths:
+  /nodes:
+    get:
+      operationId: getNode
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Node'
+components:
+  schemas:
+    Node:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+        child:
+          $ref: '#/components/schemas/Node'

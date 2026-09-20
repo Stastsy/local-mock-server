@@ -1,0 +1,22 @@
+# REQ-010: a `requestBody` whose content map has no JSON media type -> construct token `nonJsonRequestBody`.
+openapi: 3.0.3
+info:
+  title: Non-JSON request body
+  version: 1.0.0
+paths:
+  /pets:
+    post:
+      operationId: createPet
+      requestBody:
+        required: true
+        content:
+          text/plain:
+            schema:
+              type: string
+      responses:
+        '201':
+          description: created
+          content:
+            application/json:
+              schema:
+                type: object

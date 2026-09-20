@@ -1,0 +1,24 @@
+# REQ-012: vendor extensions anywhere in the document never change behaviour.
+openapi: 3.0.3
+x-root-extension: ignored
+info:
+  title: Vendor extensions
+  version: 1.0.0
+  x-info-extension: ignored
+paths:
+  /pets:
+    x-path-item-extension: ignored
+    get:
+      operationId: listPets
+      x-operation-extension: ignored
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok]
+                properties:
+                  ok:
+                    type: boolean

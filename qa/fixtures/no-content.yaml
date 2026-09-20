@@ -1,0 +1,19 @@
+# REQ-032: a selected response with no content member, and one with an empty content map.
+openapi: 3.0.3
+info:
+  title: Responses without content
+  version: 1.0.0
+paths:
+  /absent-content:
+    delete:
+      operationId: deleteAbsentContent
+      responses:
+        '204':
+          description: no content member at all
+  /empty-content:
+    delete:
+      operationId: deleteEmptyContent
+      responses:
+        '204':
+          description: an empty content map
+          content: {}

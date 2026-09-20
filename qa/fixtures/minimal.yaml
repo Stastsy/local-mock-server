@@ -1,0 +1,20 @@
+# Smallest document this project accepts: one operation, no servers block.
+openapi: 3.0.3
+info:
+  title: Minimal
+  version: 1.0.0
+paths:
+  /ping:
+    get:
+      operationId: ping
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok]
+                properties:
+                  ok:
+                    type: boolean

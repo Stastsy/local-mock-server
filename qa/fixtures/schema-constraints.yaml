@@ -1,0 +1,81 @@
+# REQ-038: additionalProperties, supported formats, and an unrecognised format that must be
+# ignored while the remaining constraints still hold.
+openapi: 3.0.3
+info:
+  title: Schema constraints
+  version: 1.0.0
+paths:
+  /strict:
+    get:
+      operationId: getStrict
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [a, b]
+                properties:
+                  a:
+                    type: string
+                    minLength: 1
+                    maxLength: 5
+                  b:
+                    type: integer
+                    minimum: 10
+                    maximum: 20
+  /formats:
+    get:
+      operationId: getFormats
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [when, id, mail, host, v4, v6, link, day]
+                properties:
+                  when:
+                    type: string
+                    format: date-time
+                  id:
+                    type: string
+                    format: uuid
+                  mail:
+                    type: string
+                    format: email
+                  host:
+                    type: string
+                    format: hostname
+                  v4:
+                    type: string
+                    format: ipv4
+                  v6:
+                    type: string
+                    format: ipv6
+                  link:
+                    type: string
+                    format: uri
+                  day:
+                    type: string
+                    format: date
+  /unknown-format:
+    get:
+      operationId: getUnknownFormat
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [gtin]
+                properties:
+                  gtin:
+                    type: string
+                    format: gtin-13
+                    minLength: 13
+                    maxLength: 13

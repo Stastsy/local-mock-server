@@ -1,0 +1,19 @@
+# REQ-010: a named example carrying `externalValue` -> construct token `externalValue`.
+openapi: 3.0.3
+info:
+  title: External example value
+  version: 1.0.0
+paths:
+  /pets:
+    get:
+      operationId: listPets
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+              examples:
+                remote:
+                  externalValue: https://example.com/pets.json

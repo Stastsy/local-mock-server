@@ -1,0 +1,22 @@
+# REQ-010: a wildcard `responses` key -> construct token `responseCodeRange`.
+openapi: 3.0.3
+info:
+  title: Response code range
+  version: 1.0.0
+paths:
+  /pets:
+    get:
+      operationId: listPets
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+        '4XX':
+          description: any client error
+          content:
+            application/json:
+              schema:
+                type: object

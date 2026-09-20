@@ -1,0 +1,61 @@
+# `$ref` used in every position OpenAPI 3.0 permits one.
+openapi: 3.0.3
+info:
+  title: Refs everywhere
+  version: 1.0.0
+paths:
+  /things:
+    post:
+      operationId: createThing
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+      requestBody:
+        $ref: '#/components/requestBodies/Thing'
+      responses:
+        '201':
+          $ref: '#/components/responses/Created'
+components:
+  parameters:
+    Limit:
+      name: limit
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+  requestBodies:
+    Thing:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Thing'
+  responses:
+    Created:
+      description: created
+      headers:
+        X-Thing:
+          $ref: '#/components/headers/XThing'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Thing'
+          examples:
+            only:
+              $ref: '#/components/examples/OnlyThing'
+  headers:
+    XThing:
+      schema:
+        type: string
+  examples:
+    OnlyThing:
+      value:
+        name: resolved
+  schemas:
+    Thing:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1

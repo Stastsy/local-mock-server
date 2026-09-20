@@ -1,0 +1,49 @@
+# REQ-020: a path-item parameter applies to every operation; an operation parameter with the
+# same name and location replaces it. Here `get` inherits the required `filter`, while `post`
+# overrides it with an optional one.
+openapi: 3.0.3
+info:
+  title: Path-item parameters
+  version: 1.0.0
+paths:
+  /items:
+    parameters:
+      - name: filter
+        in: query
+        required: true
+        schema:
+          type: string
+          minLength: 1
+    get:
+      operationId: listItems
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok]
+                properties:
+                  ok:
+                    type: boolean
+    post:
+      operationId: createItem
+      parameters:
+        - name: filter
+          in: query
+          required: false
+          schema:
+            type: string
+            minLength: 1
+      responses:
+        '201':
+          description: created
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok]
+                properties:
+                  ok:
+                    type: boolean

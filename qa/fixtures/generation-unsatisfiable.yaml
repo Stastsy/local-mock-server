@@ -1,0 +1,38 @@
+# REQ-040: mutually contradictory constraints the generator cannot satisfy.
+openapi: 3.0.3
+info:
+  title: Unsatisfiable schema
+  version: 1.0.0
+paths:
+  /impossible:
+    get:
+      operationId: getImpossible
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [s]
+                properties:
+                  s:
+                    type: string
+                    minLength: 5
+                    maxLength: 2
+  /possible:
+    get:
+      operationId: getPossible
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [s]
+                properties:
+                  s:
+                    type: string
+                    minLength: 1
+                    maxLength: 5

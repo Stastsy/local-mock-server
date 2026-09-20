@@ -1,0 +1,27 @@
+# REQ-018 rule 6: a `servers[0].url` that is a string — so the Server Object schema is satisfied
+# and REQ-004 does not fire — but that cannot be parsed as an absolute or a relative URL.
+# `new URL("http://[")` and `new URL("http://[", base)` both throw ERR_INVALID_URL.
+# The entry is ignored, the base path is empty, and this is never a load-time error.
+openapi: 3.0.3
+servers:
+  - url: 'http://['
+info:
+  title: Unparseable server URL
+  version: 1.0.0
+paths:
+  /pets:
+    get:
+      operationId: listPets
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok]
+                properties:
+                  ok:
+                    type: boolean
+              example:
+                ok: true

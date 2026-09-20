@@ -1,0 +1,27 @@
+# REQ-018: base path derived from the path component of servers[0].url.
+openapi: 3.0.3
+servers:
+  - url: https://{tenant}.example.com/v1
+    variables:
+      tenant:
+        default: acme
+info:
+  title: Base path variant
+  version: 1.0.0
+paths:
+  /pets:
+    get:
+      operationId: listPets
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok]
+                properties:
+                  ok:
+                    type: boolean
+              example:
+                ok: true

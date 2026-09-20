@@ -1,0 +1,55 @@
+# REQ-012 / REQ-043: documented response headers and links are never emitted, and a documented
+# header in the reserved X-Mock- namespace is never emitted under any circumstances.
+openapi: 3.0.3
+info:
+  title: Ignored response headers and links
+  version: 1.0.0
+paths:
+  /pets:
+    get:
+      operationId: listPets
+      responses:
+        '200':
+          description: ok
+          headers:
+            X-Rate-Limit:
+              description: Requests left in the window.
+              schema:
+                type: integer
+            X-Mock-Source:
+              description: A documented header that collides with the reserved prefix.
+              schema:
+                type: string
+          links:
+            firstPet:
+              operationId: getPet
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok]
+                properties:
+                  ok:
+                    type: boolean
+  /pets/{petId}:
+    get:
+      operationId: getPet
+      parameters:
+        - name: petId
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id]
+                properties:
+                  id:
+                    type: integer
+                    minimum: 1

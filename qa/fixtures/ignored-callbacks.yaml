@@ -1,0 +1,27 @@
+# REQ-012: callbacks load and are never invoked.
+openapi: 3.0.3
+info:
+  title: Ignored callbacks
+  version: 1.0.0
+paths:
+  /subscribe:
+    post:
+      operationId: subscribe
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok]
+                properties:
+                  ok:
+                    type: boolean
+      callbacks:
+        onEvent:
+          'https://callbacks.example.com/event':
+            post:
+              responses:
+                '200':
+                  description: callback acknowledged

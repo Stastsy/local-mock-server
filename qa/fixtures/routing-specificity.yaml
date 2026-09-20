@@ -1,0 +1,78 @@
+# REQ-015: literal segments beat template segments, decided left to right.
+# Each operation carries a distinct example so a test can tell which one answered
+# without asserting a generated value.
+openapi: 3.0.3
+info:
+  title: Routing specificity
+  version: 1.0.0
+paths:
+  /pets/mine:
+    get:
+      operationId: getMine
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Which'
+              example:
+                which: mine
+  /pets/{petId}:
+    get:
+      operationId: getPet
+      parameters:
+        - name: petId
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Which'
+              example:
+                which: byId
+  /pets/mine/toys:
+    get:
+      operationId: getMineToys
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Which'
+              example:
+                which: mine-toys
+  /pets/{petId}/toys:
+    get:
+      operationId: getPetToys
+      parameters:
+        - name: petId
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Which'
+              example:
+                which: byId-toys
+components:
+  schemas:
+    Which:
+      type: object
+      required: [which]
+      properties:
+        which:
+          type: string

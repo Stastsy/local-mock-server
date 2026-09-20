@@ -1,0 +1,27 @@
+# REQ-020: a required query parameter.
+openapi: 3.0.3
+info:
+  title: Required query parameter
+  version: 1.0.0
+paths:
+  /search:
+    get:
+      operationId: search
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 1
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok]
+                properties:
+                  ok:
+                    type: boolean

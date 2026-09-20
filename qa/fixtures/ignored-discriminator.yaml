@@ -1,0 +1,45 @@
+# REQ-012: a discriminator loads; generated bodies still validate against the response schema.
+openapi: 3.0.3
+info:
+  title: Ignored discriminator
+  version: 1.0.0
+paths:
+  /animals:
+    get:
+      operationId: getAnimal
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/Cat'
+                  - $ref: '#/components/schemas/Dog'
+                discriminator:
+                  propertyName: kind
+                  mapping:
+                    cat: '#/components/schemas/Cat'
+                    dog: '#/components/schemas/Dog'
+components:
+  schemas:
+    Cat:
+      type: object
+      required: [kind, livesLeft]
+      properties:
+        kind:
+          type: string
+          enum: [cat]
+        livesLeft:
+          type: integer
+          minimum: 0
+          maximum: 9
+    Dog:
+      type: object
+      required: [kind, goodBoy]
+      properties:
+        kind:
+          type: string
+          enum: [dog]
+        goodBoy:
+          type: boolean

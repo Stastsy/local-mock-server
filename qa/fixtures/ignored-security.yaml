@@ -1,0 +1,38 @@
+# REQ-012: securitySchemes + security load and are never enforced.
+openapi: 3.0.3
+info:
+  title: Ignored security
+  version: 1.0.0
+paths:
+  /secret:
+    get:
+      operationId: getSecret
+      security:
+        - apiKey: []
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok]
+                properties:
+                  ok:
+                    type: boolean
+        '401':
+          description: unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [code]
+                properties:
+                  code:
+                    type: string
+components:
+  securitySchemes:
+    apiKey:
+      type: apiKey
+      name: X-Api-Key
+      in: header

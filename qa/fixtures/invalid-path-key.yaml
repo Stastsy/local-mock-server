@@ -1,0 +1,12 @@
+# REQ-004: a `paths` key that does not begin with `/`.
+openapi: 3.0.3
+info:
+  title: Bad path key
+  version: 1.0.0
+paths:
+  pets:
+    get:
+      operationId: listPets
+      responses:
+        '200':
+          description: ok

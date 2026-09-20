@@ -1,0 +1,75 @@
+# REQ-030 / REQ-031: media type selection prefers application/json, then the first JSON media
+# type in document order; a selected response with content but no JSON media type is a 406.
+openapi: 3.0.3
+info:
+  title: Media type selection
+  version: 1.0.0
+paths:
+  /json-and-text:
+    get:
+      operationId: jsonAndText
+      responses:
+        '200':
+          description: ok
+          content:
+            text/plain:
+              schema:
+                type: string
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Marker'
+              example:
+                m: json
+  /text-then-vendor:
+    get:
+      operationId: textThenVendor
+      responses:
+        '200':
+          description: ok
+          content:
+            text/plain:
+              schema:
+                type: string
+            application/vnd.acme.pet+json:
+              schema:
+                $ref: '#/components/schemas/Marker'
+              example:
+                m: vendor
+  /hal-then-problem:
+    get:
+      operationId: halThenProblem
+      responses:
+        '200':
+          description: ok
+          content:
+            application/hal+json:
+              schema:
+                $ref: '#/components/schemas/Marker'
+              example:
+                m: hal
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Marker'
+              example:
+                m: problem
+  /non-json-only:
+    get:
+      operationId: nonJsonOnly
+      responses:
+        '200':
+          description: ok
+          content:
+            text/plain:
+              schema:
+                type: string
+            application/xml:
+              schema:
+                type: object
+components:
+  schemas:
+    Marker:
+      type: object
+      required: [m]
+      properties:
+        m:
+          type: string

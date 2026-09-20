@@ -1,0 +1,30 @@
+# REQ-004: two path templates that differ only in the name of their template variable.
+openapi: 3.0.3
+info:
+  title: Duplicate template
+  version: 1.0.0
+paths:
+  /pets/{petId}:
+    get:
+      operationId: getPetByPetId
+      parameters:
+        - name: petId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: ok
+  /pets/{id}:
+    get:
+      operationId: getPetById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: ok

@@ -1,0 +1,67 @@
+# REQ-038: allOf, oneOf and anyOf are generated so that the body still validates.
+openapi: 3.0.3
+info:
+  title: Schema composition
+  version: 1.0.0
+paths:
+  /all-of:
+    get:
+      operationId: getAllOf
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Base'
+                  - $ref: '#/components/schemas/Extra'
+  /one-of:
+    get:
+      operationId: getOneOf
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/Base'
+                  - $ref: '#/components/schemas/Other'
+  /any-of:
+    get:
+      operationId: getAnyOf
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - $ref: '#/components/schemas/Base'
+                  - $ref: '#/components/schemas/Other'
+components:
+  schemas:
+    Base:
+      type: object
+      required: [id]
+      properties:
+        id:
+          type: integer
+          minimum: 1
+          maximum: 1000
+    Extra:
+      type: object
+      required: [label]
+      properties:
+        label:
+          type: string
+          minLength: 1
+          maxLength: 20
+    Other:
+      type: object
+      required: [code]
+      properties:
+        code:
+          type: string
+          enum: [alpha, beta]

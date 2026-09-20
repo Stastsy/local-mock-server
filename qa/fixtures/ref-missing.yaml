@@ -1,0 +1,20 @@
+# REQ-005: an internal `$ref` that points at a schema which does not exist.
+openapi: 3.0.3
+info:
+  title: Unresolvable ref
+  version: 1.0.0
+paths:
+  /pets:
+    get:
+      operationId: listPets
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Missing'
+components:
+  schemas:
+    Present:
+      type: object

@@ -1,0 +1,10 @@
+# REQ-004: an operation without `responses` violates the OpenAPI 3.0 schema.
+openapi: 3.0.3
+info:
+  title: No responses
+  version: 1.0.0
+paths:
+  /pets:
+    get:
+      operationId: listPets
+      summary: Has no responses object at all.

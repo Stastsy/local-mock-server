@@ -1,0 +1,27 @@
+# REQ-019: a path parameter value arrives as a string and is coerced to its declared primitive
+# type before the schema is applied.
+openapi: 3.0.3
+info:
+  title: Path parameter coercion
+  version: 1.0.0
+paths:
+  /flag/{on}:
+    get:
+      operationId: getFlag
+      parameters:
+        - name: on
+          in: path
+          required: true
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok]
+                properties:
+                  ok:
+                    type: boolean

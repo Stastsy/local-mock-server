@@ -1,0 +1,104 @@
+# REQ-052 / REQ-054: generating operations, as REQ-054 defines them — the selected response
+# declares `content` for a JSON media type with a `schema`, and no `example`, no `examples` map and
+# no `schema.example`. By REQ-033 the payload is therefore generated (level 4), and by REQ-044 the
+# response carries `X-Mock-Payload: generated` and an `X-Mock-Seed` header.
+#
+#   G1  GET /things/{id}  — a generating operation at a templated path.
+#   G2  GET /things       — a generating operation with two optional query parameters.
+#
+# REQ-054 names `examples/petstore.yaml`'s `GET /pets` as its G2, so the G2 here exists only to keep
+# this document self-contained. `POST /things` supports REQ-055's write-then-read criterion.
+openapi: 3.0.3
+info:
+  title: Generating operations
+  version: 1.0.0
+paths:
+  /things:
+    get:
+      operationId: listThings
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [available, pending, sold]
+      responses:
+        '200':
+          description: A list of things.
+          content:
+            application/json:
+              schema:
+                type: array
+                minItems: 1
+                maxItems: 5
+                items:
+                  $ref: '#/components/schemas/Thing'
+    post:
+      operationId: createThing
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 40
+      responses:
+        '201':
+          description: The created thing.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Thing'
+  /things/{id}:
+    get:
+      operationId: getThing
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+            minimum: 1
+      responses:
+        '200':
+          description: The requested thing.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Thing'
+components:
+  schemas:
+    Thing:
+      type: object
+      required: [id, name, status]
+      properties:
+        id:
+          type: integer
+          format: int64
+          minimum: 1
+        name:
+          type: string
+          minLength: 1
+          maxLength: 40
+        status:
+          type: string
+          enum: [available, pending, sold]
+        tags:
+          type: array
+          maxItems: 4
+          items:
+            type: string

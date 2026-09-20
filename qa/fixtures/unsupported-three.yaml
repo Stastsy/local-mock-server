@@ -1,0 +1,54 @@
+# REQ-011: three distinct rejected constructs at three distinct locations, in document order:
+#   1. /a  -> cookieParameter
+#   2. /b  -> responseCodeRange
+#   3. /c  -> externalValue
+openapi: 3.0.3
+info:
+  title: Three unsupported constructs
+  version: 1.0.0
+paths:
+  /a:
+    get:
+      operationId: a
+      parameters:
+        - name: session
+          in: cookie
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+  /b:
+    get:
+      operationId: b
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+        '5XX':
+          description: any server error
+          content:
+            application/json:
+              schema:
+                type: object
+  /c:
+    get:
+      operationId: c
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+              examples:
+                remote:
+                  externalValue: https://example.com/c.json

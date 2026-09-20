@@ -1,0 +1,28 @@
+# REQ-018: path-item and operation `servers` are ignored entirely.
+openapi: 3.0.3
+servers:
+  - url: http://localhost:4010
+info:
+  title: Path-item servers
+  version: 1.0.0
+paths:
+  /pets:
+    servers:
+      - url: https://api.example.com/v2
+    get:
+      operationId: listPets
+      servers:
+        - url: https://api.example.com/v3
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok]
+                properties:
+                  ok:
+                    type: boolean
+              example:
+                ok: true

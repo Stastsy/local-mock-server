@@ -1,0 +1,49 @@
+# REQ-034 / REQ-036: a named example inside a non-default documented response, so that
+# `Prefer: code=404, example=notFound` has somewhere to resolve.
+openapi: 3.0.3
+info:
+  title: Named examples per status
+  version: 1.0.0
+paths:
+  /pets/{petId}:
+    get:
+      operationId: getPet
+      parameters:
+        - name: petId
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Marker'
+              examples:
+                found:
+                  value:
+                    marker: found
+        '404':
+          description: not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Marker'
+              examples:
+                notFound:
+                  value:
+                    marker: not-found
+                gone:
+                  value:
+                    marker: gone
+components:
+  schemas:
+    Marker:
+      type: object
+      required: [marker]
+      properties:
+        marker:
+          type: string

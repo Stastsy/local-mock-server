@@ -1,0 +1,123 @@
+# REQ-027 / REQ-028 / REQ-029: status code selection. Each response carries an example naming
+# itself, so a test can tell which documented response was selected without asserting generated data.
+openapi: 3.0.3
+info:
+  title: Status selection
+  version: 1.0.0
+paths:
+  /ok-and-bad-request:
+    get:
+      operationId: okAndBadRequest
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/From'
+              example:
+                from: '200'
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/From'
+              example:
+                from: '400'
+  /several-2xx:
+    get:
+      operationId: several2xx
+      responses:
+        '202':
+          description: accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/From'
+              example:
+                from: '202'
+        '201':
+          description: created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/From'
+              example:
+                from: '201'
+        '400':
+          description: bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/From'
+              example:
+                from: '400'
+  /no-2xx:
+    get:
+      operationId: no2xx
+      responses:
+        '404':
+          description: not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/From'
+              example:
+                from: '404'
+        '301':
+          description: moved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/From'
+              example:
+                from: '301'
+        '500':
+          description: server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/From'
+              example:
+                from: '500'
+  /default-only:
+    get:
+      operationId: defaultOnly
+      responses:
+        default:
+          description: the only documented response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/From'
+              example:
+                from: default
+  /default-and-numeric:
+    get:
+      operationId: defaultAndNumeric
+      responses:
+        default:
+          description: fallback
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/From'
+              example:
+                from: default
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/From'
+              example:
+                from: '200'
+components:
+  schemas:
+    From:
+      type: object
+      required: [from]
+      properties:
+        from:
+          type: string

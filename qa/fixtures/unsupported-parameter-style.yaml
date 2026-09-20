@@ -1,0 +1,26 @@
+# REQ-010: a non-default `style` for the parameter location -> construct token `parameterStyle`.
+openapi: 3.0.3
+info:
+  title: Parameter style
+  version: 1.0.0
+paths:
+  /pets:
+    get:
+      operationId: listPets
+      parameters:
+        - name: tags
+          in: query
+          required: false
+          style: pipeDelimited
+          explode: false
+          schema:
+            type: array
+            items:
+              type: string
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object

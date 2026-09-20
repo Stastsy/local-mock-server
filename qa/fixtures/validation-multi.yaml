@@ -1,0 +1,44 @@
+# REQ-026: one operation that can be made to violate a path, a query and a body constraint at once.
+openapi: 3.0.3
+info:
+  title: Multiple violations
+  version: 1.0.0
+paths:
+  /things/{id}:
+    post:
+      operationId: updateThing
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+        - name: size
+          in: query
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok]
+                properties:
+                  ok:
+                    type: boolean

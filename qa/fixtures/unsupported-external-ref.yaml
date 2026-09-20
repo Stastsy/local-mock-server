@@ -1,0 +1,16 @@
+# REQ-010: `$ref` into another file -> construct token `externalRef`.
+openapi: 3.0.3
+info:
+  title: External ref
+  version: 1.0.0
+paths:
+  /pets:
+    get:
+      operationId: listPets
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: './common.yaml#/components/schemas/Pet'

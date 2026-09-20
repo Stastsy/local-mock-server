@@ -1,0 +1,22 @@
+# REQ-010: `in: cookie` -> construct token `cookieParameter`.
+openapi: 3.0.3
+info:
+  title: Cookie parameter
+  version: 1.0.0
+paths:
+  /pets:
+    get:
+      operationId: listPets
+      parameters:
+        - name: session
+          in: cookie
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object

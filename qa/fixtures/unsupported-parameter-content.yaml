@@ -1,0 +1,24 @@
+# REQ-010: a parameter declaring `content` instead of `schema` -> construct token `parameterContent`.
+openapi: 3.0.3
+info:
+  title: Parameter content
+  version: 1.0.0
+paths:
+  /pets:
+    get:
+      operationId: listPets
+      parameters:
+        - name: filter
+          in: query
+          required: false
+          content:
+            application/json:
+              schema:
+                type: object
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object

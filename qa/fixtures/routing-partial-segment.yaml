@@ -1,0 +1,32 @@
+# REQ-014: a template variable that is not a whole path segment. Out of scope for the MVP, so
+# every request that is not a literal match is ROUTE_NOT_FOUND.
+openapi: 3.0.3
+info:
+  title: Partial-segment template
+  version: 1.0.0
+paths:
+  /files/{name}.{ext}:
+    get:
+      operationId: getFile
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: ext
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok]
+                properties:
+                  ok:
+                    type: boolean
