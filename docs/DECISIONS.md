@@ -64,9 +64,17 @@ work. A fixed seed removes the flakiness that generated data would otherwise cau
 **Rejected.** A hand-written generator (roughly a module plus its own unit tests, for a benefit the
 MVP does not need yet); `@faker-js/faker` with a hand-written schema walk (similar cost).
 
-**Risk and containment.** `json-schema-faker` is not actively developed. It sits behind the
-`ResponseGenerator` interface, and — because acceptance tests assert schema conformance rather than
-values — replacing it later would not touch a single acceptance test.
+**Measured behaviour (`json-schema-faker` 0.6.3).** The installed version exposes a functional API
+(`generateSync(schema, { seed })`, `createGeneratorSync`) rather than the global singleton of older
+releases. Verified on this project: a seeded `generateSync` call is reproducible, including across
+separate processes, and covers `pattern` and `format: date-time`; generator instances share no
+state; a single instance created by `createGeneratorSync` advances its PRNG between calls. The seed
+is therefore applied per generation call and never by reusing a long-lived instance — see
+`docs/ARCHITECTURE.md` §7.
+
+**Containment.** The library sits behind the `ResponseGenerator` interface and — because acceptance
+tests assert schema conformance rather than values (D-005) — replacing it later would not touch a
+single acceptance test.
 
 ---
 

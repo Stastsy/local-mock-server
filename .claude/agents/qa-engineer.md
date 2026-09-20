@@ -21,9 +21,11 @@ wrong to you, report it — do not fix it.
 ## Your only source of truth
 
 `docs/REQUIREMENTS.md` (approved) and `docs/ARCHITECTURE.md` §3 (the public contract).
-You may read `src/errors.ts` for the error-code vocabulary. Do not design tests around anything
-else in `src/` — at your stage it is a skeleton that answers `501 NOT_IMPLEMENTED` to everything,
-and tests shaped around it would be worthless.
+
+Error codes, and the HTTP status that goes with each, come from `docs/REQUIREMENTS.md` — not from
+`src/errors.ts`, whose current codes are only a bootstrap placeholder. Do not design tests around
+anything in `src/`: at your stage it is a skeleton that answers `501 NOT_IMPLEMENTED` to
+everything, and tests shaped around it would be worthless.
 
 ## Two rules that make your tests independent
 
@@ -52,8 +54,9 @@ Derive test cases systematically rather than by intuition:
   string lengths, numeric ranges, array sizes, enum membership, required vs optional.
 - Cover the error paths deliberately: every error code the requirements mention should have a test
   that provokes it. Assert on `code`, never on message wording.
-- Cover determinism explicitly: same seed and same request produce byte-identical bodies;
-  different seeds are allowed to differ.
+- Cover determinism explicitly, exactly as the determinism requirement states it — including
+  whatever it settles about seed scope (whether two different requests may share generated data).
+  Do not invent that rule yourself; if the requirement leaves it open, report it instead.
 - Cover fail-fast: bad specifications must reject in `createServer`, **before** a port is bound.
 
 Design fixtures as small, focused OpenAPI 3.0 documents — one concern each (a valid minimal API,

@@ -8,8 +8,12 @@ Owner: Orchestrator. Business Analyst, QA Engineer and Developer read this docum
 `local-mock-server` serves dynamic HTTP responses derived from a local OpenAPI 3.0.x document,
 so that client integrations can be developed and tested without a real backend.
 
-The server is **stateless**: nothing is persisted between requests. Two identical requests with the
-same seed produce the same response.
+The server is **stateless**: nothing from a request is persisted, and the server keeps no session
+or history.
+
+Separately — these are two distinct properties, neither implying the other — response generation is
+**deterministic**: an equal seed and an equal request produce an equal response body. Section 7
+records the mechanism this requires.
 
 ## 2. Pipeline
 
@@ -85,17 +89,43 @@ Every error the mock server itself produces is served as `application/problem+js
 
 Error codes are grouped into specification-loading failures (`SPEC_NOT_FOUND`, `SPEC_INVALID`,
 `UNSUPPORTED_SPEC_VERSION`, `UNSUPPORTED_CONSTRUCT`, ...) and request-handling failures
-(`ROUTE_NOT_FOUND`, `REQUEST_VALIDATION_FAILED`, `NO_RESPONSE_FOR_STATUS`, ...). The authoritative
-list lives in `src/errors.ts`; requirements refer to codes, not to message text.
+(`ROUTE_NOT_FOUND`, `REQUEST_VALIDATION_FAILED`, `NO_RESPONSE_FOR_STATUS`, ...).
 
-## 6. Response selection (baseline — the Business Analyst refines and fixes the details)
+**Which codes exist, and when each one is produced, is specified in `docs/REQUIREMENTS.md`.**
+`src/errors.ts` implements that list. The codes it carries today are a starting vocabulary from the
+bootstrap skeleton, not an approved decision. Requirements and tests refer to codes, never to
+message text.
+
+**Open for the Business Analyst.** Which HTTP status accompanies each error code, and how a client
+distinguishes an error produced by the mock server itself from an error response that the
+specification documents for the operation — a documented `404` and a "no such route" `404` must not
+be ambiguous. This is product behaviour, not an architectural decision.
+
+## 6. Response selection
+
+The items below are deliberately split by who owns them. The Business Analyst must not change an
+approved item, and must not treat a proposal as settled.
+
+### Approved — not open for change
+
+- **Control channel:** the `Prefer` request header only (decision D-002). Query parameters are
+  never used for control, so they can never collide with parameters declared in the specification.
+
+### Proposal — the Business Analyst confirms or changes each item
 
 - **Status code:** lowest 2xx by default. `Prefer: code=NNN` selects another documented response.
-- **Media type:** `application/json` if documented, otherwise the first documented media type.
+- **Media type:** `application/json` if documented, otherwise the first documented media type —
+  provided non-JSON media types are supported at all, which is itself the analyst's call in the
+  supported / not supported table.
 - **Payload precedence:** `content[mt].example` -> first of `content[mt].examples` ->
   `schema.example` -> generated data. `Prefer: example=<name>` selects a named example.
-- **Control channel:** the `Prefer` request header only. Query parameters are never used for
-  control, so they can never collide with parameters declared in the specification.
+
+### Open question — the Business Analyst decides
+
+- **Seed scope.** Whether the seed used for a response is the configured seed as it is, or is
+  derived from the configured seed together with the identity of the request. Both satisfy the
+  determinism property in §1; they differ in whether two *different* requests to the same operation
+  may return the same generated data. The architecture does not prejudge this.
 
 ## 7. Technology choices
 
@@ -108,6 +138,14 @@ list lives in `src/errors.ts`; requirements refer to codes, not to message text.
 | CLI | `node:util` `parseArgs` | No dependency |
 | Tests | `vitest` with projects `unit` and `acceptance` | TypeScript out of the box; suites separated by configuration |
 | TS execution | `tsx` (dev) + `tsc` (build) | Predictable, independent of Node's type-stripping |
+
+**Seeding.** The seed is applied per response generation — `generateSync(schema, { seed })` — and
+not by creating one long-lived generator and reusing it across requests. Measured on this project
+with `json-schema-faker` 0.6.3: a seeded `generateSync` call is reproducible, including across
+separate processes, and covers `pattern` and `format: date-time`; generator instances share no
+state, so concurrent servers with different seeds do not interfere; but a single instance created
+by `createGeneratorSync` advances its internal PRNG between calls, so reusing one would make a
+repeated identical request return a different body and break the determinism property in §1.
 
 ## 8. Module map
 

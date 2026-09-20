@@ -31,7 +31,12 @@ Every requirement is:
 - **Accompanied by acceptance criteria** in Given / When / Then form. Multiple criteria per
   requirement are normal.
 - **Anchored to error codes, not message text** — refer to `UNSUPPORTED_SPEC_VERSION`, not to a
-  particular sentence. Error codes are listed in `src/errors.ts`; read that file.
+  particular sentence. **You define which codes exist and when each one is produced.** The codes in
+  `src/errors.ts` are a starting vocabulary from the bootstrap skeleton, not an approved decision:
+  read that file for orientation, then add, rename or drop codes as the behaviour you specify
+  requires. Specify as well which HTTP status accompanies each code, and how a client tells an
+  error produced by the mock server apart from an error response the specification documents for
+  the operation.
 
 Group requirements by area: specification loading, capability checking, routing, request validation,
 response selection, data generation, CLI, determinism.
@@ -60,7 +65,11 @@ with a one-line reason.
 1. Purpose and context (short)
 2. Glossary — only terms whose meaning is not obvious
 3. Functional requirements, grouped, each `REQ-NNN` with Given/When/Then acceptance criteria
-4. Non-functional requirements (determinism, startup behaviour, error reporting quality)
+4. Non-functional requirements (determinism, startup behaviour, error reporting quality).
+   Determinism **must** carry its own `REQ-NNN`. It is stated as an invariant in `CLAUDE.md` and in
+   `docs/ARCHITECTURE.md` §1, but an invariant with no requirement id gets no test and no row in
+   the traceability matrix. Settle the open seed-scope question from `docs/ARCHITECTURE.md` §6 as
+   part of it.
 5. Supported / not supported table
 6. Out of scope for the MVP
 7. Open questions for the user — only questions that genuinely change the deliverable
