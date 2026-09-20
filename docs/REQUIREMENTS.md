@@ -41,7 +41,8 @@ normative; `src/errors.ts` implements it.
 | **Mock error** | An error produced by the mock server itself. Always `application/problem+json` and `X-Mock-Source: mock`. |
 | **Documented error** | A 4xx/5xx response taken from the specification. Carries `X-Mock-Source: specification` and is, to the server, an ordinary response. |
 | **JSON media type** | `application/json`, or any media type whose subtype ends in `+json` (e.g. `application/problem+json`, `application/vnd.acme.pet+json`). Everything else is a non-JSON media type. |
-| **Construct token** | A short, stable identifier for an unsupported OpenAPI construct, reported in `details[].construct` of an `UNSUPPORTED_CONSTRUCT` error. The complete list is in §5. |
+| **Construct token** | A short, stable identifier for an unsupported OpenAPI construct, reported in `details[].construct` of an `UNSUPPORTED_CONSTRUCT` error. The complete list is in §6. |
+| **Reachable from `paths`** | Declared on a path item, on its `parameters`, or on an operation's `parameters`, `requestBody` or `responses` — or reached from one of those places through any chain of `$ref`, at any depth. Defines the scope of capability checking (REQ-009). |
 | **Request identity** | The tuple defined in REQ-054 from which the effective seed is derived. |
 | **Effective seed** | The integer actually passed to the data generator for one response (REQ-054). |
 | **Generating operation** | An operation whose selected response has a JSON `schema` and no example of any kind, so its payload is generated and its response carries `X-Mock-Seed`. Defined in full in REQ-054; used by REQ-052 and REQ-054. |
@@ -158,6 +159,10 @@ other meta-schema constraint is relaxed.
   of the offending `$ref`.
 - `$ref` is resolved wherever OpenAPI 3.0 permits it (schemas, parameters, request bodies,
   responses, examples, headers), not only inside schemas.
+- `$ref` resolvability is checked over the **whole document**, not only over the part reachable from
+  `paths`: an unresolvable `$ref` inside a component that nothing references is still
+  `SPEC_REF_UNRESOLVABLE`. This differs deliberately from the scope of capability checking
+  (REQ-009).
 - External and circular references are **not** supported; see REQ-010.
 
 ---
@@ -220,20 +225,63 @@ other meta-schema constraint is relaxed.
 The server refuses to start on a specification it cannot serve faithfully. It never starts and then
 misbehaves at request time for a construct it could have detected at load time.
 
-- **Given** a specification containing at least one construct marked *rejected at load time* in §5,
-  **when** `createServer` is called,
+**Scope of the check — what is examined.** Capability checking examines the part of the document
+that can influence a response: everything **reachable from `paths`**. Concretely that is each path
+item, its `parameters`, and, for each of its operations, that operation's `parameters`, its
+`requestBody` and its `responses` — including everything reached from those places through `$ref`,
+at any depth. Where a construct is *written* does not decide the outcome; whether an operation
+reaches it does. A rejected construct declared inline on an operation, and the same construct
+declared under `components` and referenced from an operation, are rejected identically.
+
+A member of `components` that nothing under `paths` references — neither directly nor through any
+chain of `$ref` — is **not examined**, and its presence alone never fails the load. Such a member
+cannot influence any response, so refusing the document for it would refuse a specification that
+would have been served correctly.
+
+**Two construct tokens are exempt from that scoping.** `externalRef` and `circularRef` (REQ-010)
+are properties of the document's `$ref` graph rather than of an operation, and that graph is
+analysed as a whole at load time; both are therefore reported wherever they occur, whether or not
+anything under `paths` reaches them. The same whole-document rule governs `$ref` resolvability,
+which is `SPEC_REF_UNRESOLVABLE` (REQ-005), and document validity, which is `SPEC_INVALID`
+(REQ-004) — a document that is malformed inside an unreferenced component is still malformed.
+
+- **Given** a specification in which a construct marked *rejected at load time* in §6 is reachable
+  from `paths` in the sense defined above, **when** `createServer` is called,
   **then** it rejects with `UNSUPPORTED_CONSTRUCT`.
 - **Given** such a rejection, **when** the `MockError` is inspected,
   **then** `details` is a non-empty array, and every element is an object with a string `construct`
-  member drawn from the construct-token column of §5 and a string `pointer` member beginning
+  member drawn from the construct-token column of §6 and a string `pointer` member beginning
   with `#/`.
 - **Given** such a rejection, **then** `MockError.pointer` equals `details[0].pointer`.
+- **Given** a document that declares a rejected construct under `components` — for example
+  `components.parameters.Session` with `in: cookie` — which no path item and no operation
+  references, neither directly nor through any chain of `$ref`,
+  **when** `createServer` is called,
+  **then** it **resolves**; and when the server is started, every documented operation is served
+  exactly as it would be had the unreferenced component been absent from the document.
+- **Given** that same document amended so that one operation declares
+  `parameters: [{ $ref: '#/components/parameters/Session' }]`,
+  **when** `createServer` is called,
+  **then** it rejects with `UNSUPPORTED_CONSTRUCT`, and `details` contains an entry whose
+  `construct` is `cookieParameter` — reaching a construct through `$ref` is no different from
+  declaring it inline.
+- **Given** a document in which the same referenced `components.parameters.Session` is referenced by
+  one operation out of several, **when** `createServer` is called,
+  **then** it rejects — one reference from anywhere under `paths` is enough.
+- **Given** a document whose only `in: cookie` parameter is declared inline on an operation,
+  **when** `createServer` is called, **then** it rejects with `UNSUPPORTED_CONSTRUCT`, token
+  `cookieParameter` — the control case for the two criteria above.
 
 ---
 
 #### REQ-010 — The rejected constructs, and their tokens
 
 Each criterion below is a separate specification fixture and a separate test.
+
+Each fixture places its construct where an operation reaches it, in the sense of REQ-009 — inline on
+a path item or an operation, or under `components` and referenced from one. The two `$ref`-graph
+tokens, `externalRef` and `circularRef`, are the exception: they are rejected wherever they occur,
+referenced or not (REQ-009).
 
 - **Given** a document with a `$ref` to another file or to an `http(s)` URL,
   **then** `createServer` rejects with `UNSUPPORTED_CONSTRUCT`, token `externalRef`.
@@ -254,6 +302,16 @@ Each criterion below is a separate specification fixture and a separate test.
   **then** `createServer` rejects with `UNSUPPORTED_CONSTRUCT`, token `externalValue`.
 - **Given** a `requestBody` whose `content` map contains no JSON media type,
   **then** `createServer` rejects with `UNSUPPORTED_CONSTRUCT`, token `nonJsonRequestBody`.
+- **Given** a document whose `components.parameters.Session` declares `in: cookie` and whose
+  `GET /pets` operation declares `parameters: [{ $ref: '#/components/parameters/Session' }]`,
+  **then** `createServer` rejects with `UNSUPPORTED_CONSTRUCT`, token `cookieParameter`, and the
+  reported `pointer` locates the parameter as the operation reaches it.
+- **Given** the same document with that operation's `parameters` member removed, so that
+  `components.parameters.Session` is referenced by nothing,
+  **then** `createServer` **resolves**, `GET /pets` is served normally, and no
+  `UNSUPPORTED_CONSTRUCT` error is produced. The same holds for the four other tokens that are
+  scoped by reachability — `parameterContent`, `parameterStyle`, `externalValue` and
+  `nonJsonRequestBody` — and, by REQ-009, not for `externalRef` or `circularRef`.
 
 ---
 
@@ -272,7 +330,7 @@ A user fixes a specification once, not once per construct.
 
 #### REQ-012 — Accepted-but-ignored constructs never fail the load
 
-The constructs marked *accepted, ignored* in §5 are allowed to appear anywhere in the document. They
+The constructs marked *accepted, ignored* in §6 are allowed to appear anywhere in the document. They
 never cause a load-time rejection and never change the status code, headers or body of a response.
 
 - **Given** a document that declares `components.securitySchemes` and applies `security` to an
@@ -782,7 +840,7 @@ Acceptance criteria:
   against that schema.
 - **Given** a schema with `additionalProperties: false`, **then** the generated body contains no
   property outside `properties`.
-- **Given** a schema with a `format` from the supported list in §5, **then** the generated value
+- **Given** a schema with a `format` from the supported list in §6, **then** the generated value
   satisfies that format. **Given** an unrecognised `format`, **then** it is ignored and the
   generated value satisfies the remaining constraints of the schema.
 - Tests assert schema conformance, never specific generated values (D-005).
@@ -895,7 +953,7 @@ placeholder `NOT_IMPLEMENTED` is removed.
 | `UNSUPPORTED_SPEC_VERSION` | The document is not OpenAPI 3.0.x. | REQ-003 |
 | `SPEC_INVALID` | The document is 3.0.x but violates the OpenAPI 3.0 specification. | REQ-004 |
 | `SPEC_REF_UNRESOLVABLE` | A `$ref` cannot be resolved within the document. | REQ-005 |
-| `UNSUPPORTED_CONSTRUCT` | The document uses a construct listed as rejected in §5. | REQ-009, REQ-010 |
+| `UNSUPPORTED_CONSTRUCT` | A construct listed as rejected in §6 is reachable from `paths`, or — for `externalRef` and `circularRef` — occurs anywhere in the document. | REQ-009, REQ-010 |
 
 **Request time — served as `application/problem+json` with `X-Mock-Source: mock`.**
 
@@ -1208,12 +1266,19 @@ This table is normative and bounds the MVP. *Rejected* entries fail `createServe
 serve without error, with the stated behaviour (REQ-012). *Request-time* entries load successfully
 and produce the stated HTTP error only when the affected operation is requested.
 
+**What "rejected (load)" is scoped to.** A construct is rejected when it is **reachable from
+`paths`** in the sense of REQ-009 — declared on a path item or an operation, or reached from one
+through `$ref`. A `components` member that nothing under `paths` references is never examined and
+never fails the load, because it cannot influence any response. The two exceptions are the `$ref`
+rows below — *external file or URL* and *circular* — which are properties of the document's `$ref`
+graph and are rejected wherever they occur.
+
 | Construct | Status | Behaviour |
 |---|---|---|
 | `$ref`, internal (`#/...`) | **Supported** | Resolved at load time, anywhere OAS 3.0 permits a reference. REQ-005 |
-| `$ref`, unresolvable | Rejected (load) | `SPEC_REF_UNRESOLVABLE`. REQ-005 |
-| `$ref`, external file or URL | Rejected (load) | `UNSUPPORTED_CONSTRUCT`, token `externalRef`. Single-file specifications only. REQ-010 |
-| `$ref`, circular | Rejected (load) | `UNSUPPORTED_CONSTRUCT`, token `circularRef`. Generation from a recursive schema has no natural termination. REQ-010 |
+| `$ref`, unresolvable | Rejected (load) | `SPEC_REF_UNRESOLVABLE`, anywhere in the document. REQ-005 |
+| `$ref`, external file or URL | Rejected (load) | `UNSUPPORTED_CONSTRUCT`, token `externalRef`, anywhere in the document. Single-file specifications only. REQ-010 |
+| `$ref`, circular | Rejected (load) | `UNSUPPORTED_CONSTRUCT`, token `circularRef`, anywhere in the document. Generation from a recursive schema has no natural termination. REQ-010 |
 | Path parameters | **Supported** | Whole-segment templates, default `simple` style. Validated; failures are `422`. REQ-014, REQ-019 |
 | Query parameters | **Supported** | Default `form` style with default `explode`. Primitives, enums, and arrays of primitives. Undeclared parameters ignored. REQ-020 |
 | Header parameters | **Supported** | Default `simple` style, case-insensitive names. REQ-021 |
@@ -1224,6 +1289,7 @@ and produce the stated HTTP error only when the affected operation is requested.
 | `requestBody`, no JSON media type at all | Rejected (load) | `UNSUPPORTED_CONSTRUCT`, token `nonJsonRequestBody`. REQ-010 |
 | `requestBody`, undocumented request `Content-Type` | Request time | `415` / `UNSUPPORTED_REQUEST_MEDIA_TYPE`. REQ-023 |
 | `requestBody.content[mt].encoding` | Ignored | Only relevant to non-JSON bodies, which are rejected at load. |
+| Unreferenced `components` members | Ignored | Not examined by capability checking; a rejected construct that no operation reaches never fails the load. Document validity (REQ-004) and `$ref` resolution (REQ-005) still cover them. REQ-009 |
 | `allOf` | **Supported** | Validated and generated. REQ-038 |
 | `oneOf` / `anyOf` | **Supported** | Validated; generation picks one branch, deterministically under the effective seed. REQ-038 |
 | `discriminator` | Ignored | No mapping resolution; validation and generation proceed from the `oneOf`/`anyOf` branches, so bodies stay schema-valid. REQ-012 |
@@ -1281,6 +1347,8 @@ Each line is excluded deliberately; each is a clean follow-up iteration.
 - **Emitting documented response headers, `Link` headers and `callbacks`** — no consumer in the MVP.
 - **Server URL templating** (`server.variables` substitution to derive a base path) — REQ-018
   ignores a templated `servers[0].url` rather than choosing a default expansion for it.
+- **Capability checking of unreferenced `components`** — REQ-009 scopes the check to what `paths`
+  reaches, because a component no operation reaches cannot influence a response.
 - **Stateful behaviour** (a `POST` affecting a later `GET`) — excluded by ARCHITECTURE §1.
 - **Request/response recording, proxy or passthrough mode** — a different product.
 - **CORS headers, TLS, authentication of the mock itself, hot reload of the specification on file
@@ -1303,9 +1371,10 @@ absent section.
 ### 8.1 Decisions taken after review
 
 Rows 1–5 are the questions raised in the first draft; row 6 is a conflict between two requirements
-that surfaced during implementation. All were put to the user and answered. Each outcome is recorded
-here and is already reflected in the requirement it affects; where the two differ, the requirement
-is authoritative.
+that surfaced during implementation; row 7 is a gap found by an external review after the project
+was declared complete. All were put to the user and answered. Each outcome is recorded here and is
+already reflected in the requirement it affects; where the two differ, the requirement is
+authoritative.
 
 | # | Question | Outcome | Affected |
 |---|---|---|---|
@@ -1315,11 +1384,13 @@ is authoritative.
 | 4 | Are the `X-Mock-*` headers acceptable as the disambiguation mechanism? | **Confirmed as specified.** All three — `X-Mock-Source`, `X-Mock-Payload`, `X-Mock-Seed` — stay. | REQ-043, REQ-044, REQ-046, REQ-054 |
 | 5 | Should an unsatisfiable `Prefer: code=NNN` error, or fall back silently per RFC 7240? | **Confirmed as specified.** `400` / `NO_RESPONSE_FOR_STATUS`. A silently ignored preference yields a passing test that verified nothing; the departure from the RFC's advisory semantics is deliberate. | REQ-029 |
 | 6 | REQ-033 gives a precedence rule for a media type declaring both `example` and `examples`, but the meta-schema's `ExampleXORExamples` constraint makes such a document invalid, which REQ-004 required rejecting. The two could not both hold. | **Tolerance legitimised.** The document is accepted; `ExampleXORExamples` is the one meta-schema constraint not enforced, and REQ-033 governs the payload. Declaring both is a common authoring mistake that other mock tools tolerate; rejecting it would trade a working mock for meta-schema purity. | REQ-004, REQ-033, §6 |
+| 7 | REQ-009 and REQ-010 said the server rejects a document that *uses* a construct listed as rejected in §6, which reads as "declares it anywhere". The server examines only what is reachable from `paths`, so a rejected construct sitting in `components` that no operation references loads and is served. Found by an external review after the project was declared complete. | **Requirement clarified; behaviour unchanged.** Capability checking is scoped to the constructs reachable from `paths`, including everything reached from there through `$ref`; an unreferenced `components` member is never examined and never fails the load. An unreferenced component cannot influence a response, so rejecting a document for one would be false strictness — it would refuse specifications that would have served correctly. `externalRef` and `circularRef` remain whole-document, being properties of the `$ref` graph. This is a clarification of intent, not a change of behaviour: the server already does exactly what the amended text describes, and no code change follows from this row. | REQ-009, REQ-010, §6, §7 |
 
-Questions 1 and 6 changed the deliverable; the rest confirmed what was already specified. Question 6
-was raised during implementation rather than at review, and is recorded here because this table is
-where a reader now looks for how such conflicts were settled. Every affected requirement was
-amended in place and keeps its id; no requirement was renumbered and the total is unchanged.
+Questions 1 and 6 changed the deliverable; the rest confirmed or clarified what was already
+specified. Question 6 was raised during implementation and question 7 after the project was
+declared complete; both are recorded here because this table is where a reader now looks for how
+such findings were settled. Every affected requirement was amended in place and keeps its id; no
+requirement was renumbered and the total is unchanged.
 
 ### 8.2 If something here is later found wrong
 
@@ -1358,6 +1429,14 @@ decide whether to accept them.
    only be seen by starting a server and issuing a request. REQ-018 therefore carries more
    acceptance criteria than any other requirement in this document, and that is deliberate: this is
    the area where a wrong guess is invisible until a real client is pointed at the mock.
+6. **The reachability scope of REQ-009 is asymmetric between construct tokens.** Six tokens are
+   scoped to what `paths` reaches; `externalRef` and `circularRef` are whole-document. The asymmetry
+   is justified — the two exceptions are properties of the `$ref` graph, which must be resolvable
+   as a whole before anything can be served — but it is a rule a reader has to hold in mind, and a
+   specification with an unreferenced component holding an external `$ref` is refused while one
+   holding a cookie parameter is not. Narrowing the two exceptions to reachable references as well
+   would be defensible in a later iteration; it is not proposed here, because it would change
+   behaviour that is currently shipped and tested.
 
 *(A fifth concern in the first draft — that REQ-043's reserved `X-Mock-` prefix depended on
 documented response headers not being emitted — has been resolved by restating REQ-043 so the two
