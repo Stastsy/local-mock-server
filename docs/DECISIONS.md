@@ -91,3 +91,47 @@ framework and the data generator can both be replaced without touching a test. T
 
 **Rejected.** `app.inject()` for speed — it would make the suite depend on Fastify being the
 framework, i.e. on an implementation detail the Developer owns.
+
+---
+
+## D-006 — A document declaring both `example` and `examples` is accepted
+
+**Decision.** The OpenAPI 3.0 meta-schema is enforced at load time with one exception:
+`ExampleXORExamples` on the Media Type Object. A document that declares both keywords loads
+successfully, and REQ-033's precedence decides which value is served — `example` wins.
+
+**Why.** The two requirements were in genuine conflict: REQ-033 specifies what to serve when both
+are present, while REQ-004 requires an invalid document to be rejected, and `SwaggerParser.validate`
+does reject exactly that document. Verified directly rather than taken on report. Declaring both is
+a common authoring mistake, and other mock tools tolerate it; rejecting the document would trade a
+working mock for meta-schema purity.
+
+**Rejected.** Enforcing the meta-schema strictly and withdrawing REQ-033's third precedence
+criterion. It is the more conformant reading, but it makes the tool refuse specifications people
+actually have, and it would have churned three agents' artifacts to get there.
+
+**Implementation note.** The server validates a sanitised copy of the document and serves the
+original, which keeps both keywords. That is an implementation detail; the requirements specify only
+the observable behaviour.
+
+---
+
+## D-007 — Generated values are re-validated before they are served
+
+**Decision.** Every value produced by the data generator is validated against the schema it was
+generated from. A value that does not conform is not served: the request fails with
+`GENERATION_FAILED`.
+
+**Why.** `json-schema-faker` does not enforce contradictory constraints — measured on this project,
+`generateSync({ type: 'string', minLength: 5, maxLength: 2 }, { seed: 1 })` returns `"aG8"`, which
+satisfies neither bound. Without the re-validation step REQ-040 would not hold, and worse, it would
+not visibly fail: the server would answer `200` with a body that does not match its own
+specification, which is precisely the failure a mock server exists to prevent.
+
+**Consequence.** This step is load-bearing, not defensive polish. Removing it as an optimisation
+would silently regress REQ-040 from an error into a passing response with a non-conforming body.
+
+**Known limitation.** The re-validation uses the same AJV instance and the same OAS-to-JSON-Schema
+converter that the acceptance suite uses for its own assertions (`docs/TEST-PLAN.md` §7.1). A bug in
+the converter would therefore be invisible to both sides. Accepted: an independent second validator
+costs more than the risk it removes.
