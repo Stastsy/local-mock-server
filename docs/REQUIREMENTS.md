@@ -44,6 +44,7 @@ normative; `src/errors.ts` implements it.
 | **Construct token** | A short, stable identifier for an unsupported OpenAPI construct, reported in `details[].construct` of an `UNSUPPORTED_CONSTRUCT` error. The complete list is in §5. |
 | **Request identity** | The tuple defined in REQ-054 from which the effective seed is derived. |
 | **Effective seed** | The integer actually passed to the data generator for one response (REQ-054). |
+| **Generating operation** | An operation whose selected response has a JSON `schema` and no example of any kind, so its payload is generated and its response carries `X-Mock-Seed`. Defined in full in REQ-054; used by REQ-052 and REQ-054. |
 | **Load time** | Inside `createServer`, before any port is bound. |
 | **Request time** | While answering an HTTP request on a started server. |
 
@@ -831,11 +832,25 @@ Acceptance criteria:
 
 - **Given** any response with `X-Mock-Source: specification`, **then** an `X-Mock-Payload` header is
   present with exactly one of the values `example`, `generated`, `none`.
+- The value maps onto the four precedence levels of REQ-033 as follows. **All three example levels
+  yield `example`** — the payload came from the specification, not from the generator, and the
+  server draws no distinction between them:
+
+  | REQ-033 level | Payload source | `X-Mock-Payload` | `X-Mock-Seed` |
+  |---|---|---|---|
+  | 1 | `content[mt].example` | `example` | absent |
+  | 2 | first of `content[mt].examples`, or the one named by `Prefer: example=<name>` | `example` | absent |
+  | 3 | `content[mt].schema.example` | `example` | absent |
+  | 4 | data generated from `content[mt].schema` | `generated` | present |
+  | — | the selected response has no `content` (REQ-032) | `none` | absent |
+
 - **Given** a response with `X-Mock-Payload: generated`, **then** an `X-Mock-Seed` header is present
   whose value is the decimal representation of the effective seed (REQ-054), an integer in
   `0..4294967295`.
 - **Given** a response with `X-Mock-Payload: example` or `none`, **then** no `X-Mock-Seed` header is
-  present.
+  present. In particular, **given** a selected response whose only example is a `schema.example`
+  (REQ-033 level 3), **then** `X-Mock-Payload` is `example` and no `X-Mock-Seed` header is present,
+  because no seed was consumed.
 - **Given** a response with `X-Mock-Source: mock`, **then** neither `X-Mock-Payload` nor
   `X-Mock-Seed` is present.
 
@@ -963,9 +978,22 @@ the process exit code.
 
 #### REQ-051 — Startup, failure reporting and shutdown
 
-- **Given** a valid specification, **when** the CLI starts successfully,
-  **then** exactly one line is written to stdout containing the bound URL in the form
+- **Given** a valid specification and `--log-level silent`, **when** the CLI starts successfully,
+  **then** **exactly one** line is written to stdout, that line contains the bound URL in the form
   `http://<host>:<port>`, and the process stays alive.
+- **Given** a valid specification at any other log level — including the CLI default of `info`
+  (REQ-049) — **when** the CLI starts successfully,
+  **then** stdout contains a line with the bound URL in the form `http://<host>:<port>`, and the
+  process stays alive. Further lines written by the logger are permitted; no test may assert on
+  their number, order or content (REQ-057).
+
+> The line count is asserted only at `silent` because that is the only level at which the CLI owns
+> stdout exclusively. The alternative — making `silent` the CLI default so the single-line rule
+> could hold unconditionally — was rejected: a tool that prints nothing on a successful start looks
+> broken, and REQ-049 sets the CLI default to `info` deliberately. The startup line itself is
+> required at every level, so the behaviour a user depends on is unconditional; only the exclusivity
+> of stdout is scoped.
+
 - **Given** a specification that fails to load, **when** the CLI is run,
   **then** a line beginning with the error `code` followed by `: ` is written to **stderr**, nothing
   is written to stdout, and the process exits with code `1`.
@@ -983,19 +1011,30 @@ the process exit code.
 Equal seed plus equal request produce an equal response body. This is a hard guarantee, not a
 best-effort one, and it is what makes the acceptance suite stable.
 
-- **Given** a server with `seed: 42`, **when** the same request (same method, same path, same query
-  string, same `Prefer` header) is issued twice,
-  **then** the two response bodies are byte-identical and both `X-Mock-Seed` values are equal.
+Throughout this requirement, *"the same request"* means the same method, the same path, the same
+query string and the same `Prefer` header. The criteria that assert on `X-Mock-Seed` are stated
+against a **generating operation** (defined in REQ-054), because only a generated payload carries
+that header (REQ-044); the criteria that assert only on the body hold for any operation.
+
+- **Given** a server with `seed: 42`, **when** the same request is issued twice,
+  **then** the two response bodies are byte-identical.
+- **Given** a server with `seed: 42` and a generating operation, **when** the same request to it is
+  issued twice, **then** both responses carry `X-Mock-Payload: generated` and equal `X-Mock-Seed`
+  values, and the bodies are byte-identical.
 - **Given** two servers created in the **same process** from the same specification with
   `seed: 42`, **when** the same request is issued to each,
   **then** the response bodies are byte-identical.
 - **Given** two servers started in **separate processes** from the same specification with
   `seed: 42`, **when** the same request is issued to each,
   **then** the response bodies are byte-identical.
-- **Given** a server with `seed: 42` and another with `seed: 43`,
-  **when** the same request is issued to each,
+- **Given** a server with `seed: 42` and another with `seed: 43`, and a generating operation,
+  **when** the same request to it is issued to each,
   **then** the `X-Mock-Seed` values differ. (The bodies are expected to differ too, but a test must
   not assert that: a sufficiently constrained schema may admit only one value.)
+- **Given** a server with `seed: 42` and another with `seed: 43`, **when** the same request is
+  issued to each for an operation whose payload is an example (REQ-033 levels 1–3),
+  **then** the two bodies are byte-identical — the seed cannot influence a payload the
+  specification prescribes. On `examples/petstore.yaml`, `GET /pets/1` is such a request.
 - **Given** interleaved requests to other operations between two identical requests,
   **then** the two identical requests still return byte-identical bodies — no generator state
   carries over between responses (ARCHITECTURE §7).
@@ -1035,18 +1074,45 @@ Its result is an integer in `0..4294967295` and is published as `X-Mock-Seed` (R
 
 **Stated consequence.** Two *different* requests to the same operation are generated with different
 effective seeds and therefore need not return the same data; two *identical* requests always do
-(REQ-052). Concretely: `GET /pets/1` and `GET /pets/2` are independent draws, which is what makes
-the mock usable as a stand-in for a real collection. The cost is that the generated body for a given
-operation is not a single fixed document — a client must not hard-code a value it saw for one path
-and expect it at another. Where a fixed value is needed, the specification must provide an `example`
-(REQ-033).
+(REQ-052). Concretely, for an operation at `/things/{id}` whose response is generated, `GET
+/things/1` and `GET /things/2` are independent draws, which is what makes the mock usable as a
+stand-in for a real collection. The cost is that the generated body for a given operation is not a
+single fixed document — a client must not hard-code a value it saw for one path and expect it at
+another. Where a fixed value is needed, the specification must provide an example (REQ-033).
+
+**The specification these criteria require.** The effective seed is observable only where a payload
+is actually generated, so the criteria below are stated against a **generating operation**:
+
+> **Generating operation** — an operation whose selected response declares `content` for a JSON
+> media type with a `schema`, and declares **no** `example`, **no** `examples` map and **no**
+> `schema.example`. By REQ-033 its payload is therefore generated (level 4), and by REQ-044 its
+> response carries `X-Mock-Payload: generated` and an `X-Mock-Seed` header.
+
+Two shapes are needed, and one specification may provide both:
+
+- **G1** — a generating operation at a **templated** path, written below as `GET /things/{id}`, for
+  the criteria that vary the path.
+- **G2** — a generating operation declaring at least two **optional** query parameters, for the
+  criteria that vary the query string.
+
+`examples/petstore.yaml`'s `GET /pets` is a G2 generating operation: its `200` response declares a
+schema and no example of any kind, and it declares the optional `limit` and `status` parameters.
+Its `GET /pets/{petId}` is **not** a generating operation — it declares an `examples` map, so by
+REQ-033 its payload is the `rex` example and by REQ-044 it carries no `X-Mock-Seed`. Criteria that
+need G1 therefore name no existing file; QA supplies a specification of the shape described.
 
 Acceptance criteria:
 
-- **Given** a server with any seed, **when** `GET /pets/1` and `GET /pets/2` are requested,
-  **then** both responses carry `X-Mock-Payload: generated` and their `X-Mock-Seed` values differ.
-- **Given** the same server, **when** `GET /pets?limit=1` and `GET /pets?limit=2` are requested,
-  **then** their `X-Mock-Seed` values differ.
+- **Given** a server with any seed loaded from a specification providing **G1**,
+  **when** `GET /things/1` and `GET /things/2` are requested,
+  **then** both responses carry `X-Mock-Payload: generated` and their `X-Mock-Seed` values differ —
+  the path is part of the identity (component 3).
+- **Given** the same server, **when** `GET /things/1` is requested twice,
+  **then** the two `X-Mock-Seed` values are equal and the bodies are byte-identical (REQ-052).
+- **Given** a server loaded from `examples/petstore.yaml` (whose `GET /pets` is **G2**),
+  **when** `GET /pets?limit=1` and `GET /pets?limit=2` are requested,
+  **then** both responses carry `X-Mock-Payload: generated` and their `X-Mock-Seed` values differ —
+  the query string is part of the identity (component 4).
 - **Given** the same server, **when** `GET /pets?limit=1&status=sold` and
   `GET /pets?status=sold&limit=1` are requested,
   **then** their `X-Mock-Seed` values are **equal** and their bodies are byte-identical — query
@@ -1055,7 +1121,7 @@ Acceptance criteria:
   no `Prefer` header (both selecting `200`),
   **then** the `X-Mock-Seed` values are equal and the bodies are byte-identical — the `Prefer`
   header influences identity only through the status and media type it selects.
-- **Given** the same server, **when** `GET /pets/1` is requested twice,
+- **Given** the same server, **when** `GET /pets` is requested twice with no `Prefer` header,
   **then** the `X-Mock-Seed` values are equal (REQ-052).
 
 ---
