@@ -121,7 +121,17 @@ document and the JSON document that parses to the same object produce the same s
 
 ---
 
-#### REQ-004 — The document must be a valid OpenAPI 3.0 document
+#### REQ-004 — The document must be a valid OpenAPI 3.0 document, with one tolerated exception
+
+The OpenAPI 3.0 meta-schema is enforced **except** for the `ExampleXORExamples` constraint on the
+Media Type Object, which forbids declaring both `example` and `examples` on the same media type.
+That single constraint is **not** enforced: a document declaring both loads successfully, and
+REQ-033 determines which value is served.
+
+Declaring both is a common authoring mistake rather than a sign of a broken document, and other
+mock tools tolerate it. The mock's job is to be useful against specifications as people actually
+write them, so rejecting such a document would trade a working mock for meta-schema purity. No
+other meta-schema constraint is relaxed.
 
 - **Given** a 3.0.x document that violates the OpenAPI 3.0 schema (for example an operation with no
   `responses`, a `paths` key not beginning with `/`, or an unknown root field such as `webhooks`),
@@ -129,6 +139,10 @@ document and the JSON document that parses to the same object produce the same s
 - **Given** two path templates that differ only in the names of their template variables
   (`/pets/{petId}` and `/pets/{id}`), **when** `createServer` is called,
   **then** it rejects with `SPEC_INVALID`.
+- **Given** a 3.0.x document that is otherwise valid but declares **both** `example` and `examples`
+  on the same media type object, **when** `createServer` is called,
+  **then** it **resolves** — it does not reject with `SPEC_INVALID` — and the operation is served
+  with the payload REQ-033 selects.
 - **Given** a valid 3.0.x document, **when** `createServer` is called, **then** it resolves.
 
 ---
@@ -653,6 +667,11 @@ With no `Prefer: example` directive, the payload is the first of the following t
 3. `content[mediaType].schema.example`
 4. data generated from `content[mediaType].schema` (§4.6)
 
+Levels 1 and 2 can only both apply to a document that the OpenAPI 3.0 meta-schema's
+`ExampleXORExamples` constraint forbids. Such a document is **deliberately accepted** rather than
+rejected (REQ-004), precisely so that this precedence rule has something to govern; level 1 then
+wins.
+
 Acceptance criteria:
 
 - **Given** `GET /pets/{petId}` with `Prefer: code=404`, whose `404` response declares
@@ -663,8 +682,13 @@ Acceptance criteria:
 - **Given** `GET /pets/1`, whose `200` response declares `examples` with `rex` first and `mittens`
   second and no `example`, **when** it is requested with no `Prefer` header,
   **then** the body equals the `rex` example value and `X-Mock-Payload` is `example`.
-- **Given** an operation whose selected media type declares both `example` and `examples`,
-  **then** `example` wins.
+- **Given** an operation whose selected media type declares both `example` and `examples` — a
+  combination the meta-schema forbids and REQ-004 tolerates — **when** it is requested with no
+  `Prefer` header, **then** the body equals the `example` value, not any entry of `examples`, and
+  `X-Mock-Payload` is `example`.
+- **Given** the same operation, **when** it is requested with `Prefer: example=<name>` naming an
+  entry of its `examples` map, **then** the body equals that named entry's value — an explicit
+  `Prefer: example` directive overrides the precedence order (REQ-034).
 - **Given** `GET /pets`, whose `200` response declares neither `example` nor `examples` nor
   `schema.example`, **when** it is requested,
   **then** the body validates against the response schema and `X-Mock-Payload` is `generated`.
@@ -1230,6 +1254,7 @@ and produce the stated HTTP error only when the affected operation is requested.
 | Response code wildcards (`2XX`, `4XX`, …) | Rejected (load) | `UNSUPPORTED_CONSTRUCT`, token `responseCodeRange`. REQ-010 |
 | `default` response | **Supported** | Used only when the operation documents no numeric status; served as `200`. REQ-027 |
 | `example` / `examples` with `value` | **Supported** | Precedence per REQ-033; selectable with `Prefer: example=<name>`. REQ-034 |
+| `example` **and** `examples` on the same media type | **Supported** (tolerated) | The OpenAPI 3.0 meta-schema forbids this (`ExampleXORExamples`), but the document is **accepted** rather than rejected, and `example` is served. The only meta-schema constraint not enforced. REQ-004, REQ-033 |
 | `examples` with `externalValue` | Rejected (load) | `UNSUPPORTED_CONSTRUCT`, token `externalValue`. REQ-010 |
 | `xml` object on a schema | Ignored | No XML is ever produced. |
 | Vendor extensions (`x-...`) | Ignored | Never affect behaviour. REQ-012 |
@@ -1277,9 +1302,10 @@ absent section.
 
 ### 8.1 Decisions taken after review
 
-The five questions raised in the first draft were put to the user and answered. Each outcome is
-recorded here and is already reflected in the requirement it affects; where the two differ, the
-requirement is authoritative.
+Rows 1–5 are the questions raised in the first draft; row 6 is a conflict between two requirements
+that surfaced during implementation. All were put to the user and answered. Each outcome is recorded
+here and is already reflected in the requirement it affects; where the two differ, the requirement
+is authoritative.
 
 | # | Question | Outcome | Affected |
 |---|---|---|---|
@@ -1288,9 +1314,12 @@ requirement is authoritative.
 | 3 | Should `REQUEST_VALIDATION_FAILED` be `422` or `400`? | **Confirmed as specified.** `422`, so that the commonest mock error is separable from a documented `400` by status alone. | REQ-045 |
 | 4 | Are the `X-Mock-*` headers acceptable as the disambiguation mechanism? | **Confirmed as specified.** All three — `X-Mock-Source`, `X-Mock-Payload`, `X-Mock-Seed` — stay. | REQ-043, REQ-044, REQ-046, REQ-054 |
 | 5 | Should an unsatisfiable `Prefer: code=NNN` error, or fall back silently per RFC 7240? | **Confirmed as specified.** `400` / `NO_RESPONSE_FOR_STATUS`. A silently ignored preference yields a passing test that verified nothing; the departure from the RFC's advisory semantics is deliberate. | REQ-029 |
+| 6 | REQ-033 gives a precedence rule for a media type declaring both `example` and `examples`, but the meta-schema's `ExampleXORExamples` constraint makes such a document invalid, which REQ-004 required rejecting. The two could not both hold. | **Tolerance legitimised.** The document is accepted; `ExampleXORExamples` is the one meta-schema constraint not enforced, and REQ-033 governs the payload. Declaring both is a common authoring mistake that other mock tools tolerate; rejecting it would trade a working mock for meta-schema purity. | REQ-004, REQ-033, §6 |
 
-Only question 1 changed the deliverable. REQ-018 was amended in place and keeps its id; no
-requirement was renumbered and the total is unchanged.
+Questions 1 and 6 changed the deliverable; the rest confirmed what was already specified. Question 6
+was raised during implementation rather than at review, and is recorded here because this table is
+where a reader now looks for how such conflicts were settled. Every affected requirement was
+amended in place and keeps its id; no requirement was renumbered and the total is unchanged.
 
 ### 8.2 If something here is later found wrong
 
