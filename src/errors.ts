@@ -5,26 +5,54 @@
  * specification or while answering a request — carries a stable machine-readable
  * `code`, a human-readable `message` and, where applicable, a `pointer` into the
  * specification so the user can find the offending construct.
+ *
+ * The code vocabulary below is normative: it is REQ-045's table, and nothing else.
  */
 
-export type MockErrorCode =
-  // Specification loading (fail-fast, before the server starts listening)
+/** Codes that reject `createServer`. Their HTTP status is deliberately not part of the contract. */
+export type LoadTimeErrorCode =
+  | 'CONFIG_INVALID'
   | 'SPEC_NOT_FOUND'
   | 'SPEC_UNREADABLE'
-  | 'SPEC_INVALID'
   | 'UNSUPPORTED_SPEC_VERSION'
-  | 'UNSUPPORTED_CONSTRUCT'
-  // Request handling
+  | 'SPEC_INVALID'
+  | 'SPEC_REF_UNRESOLVABLE'
+  | 'UNSUPPORTED_CONSTRUCT';
+
+/** Codes served as `application/problem+json` with `X-Mock-Source: mock`. */
+export type RequestTimeErrorCode =
   | 'ROUTE_NOT_FOUND'
   | 'METHOD_NOT_ALLOWED'
+  | 'MALFORMED_REQUEST_BODY'
+  | 'UNSUPPORTED_REQUEST_MEDIA_TYPE'
   | 'REQUEST_VALIDATION_FAILED'
-  | 'NO_RESPONSE_FOR_STATUS'
-  | 'NO_SUPPORTED_MEDIA_TYPE'
-  | 'EXAMPLE_NOT_FOUND'
   | 'INVALID_PREFER_HEADER'
-  | 'GENERATION_FAILED'
-  // Placeholder used by the bootstrap skeleton only
-  | 'NOT_IMPLEMENTED';
+  | 'NO_RESPONSE_FOR_STATUS'
+  | 'EXAMPLE_NOT_FOUND'
+  | 'NO_SUPPORTED_MEDIA_TYPE'
+  | 'GENERATION_FAILED';
+
+export type MockErrorCode = LoadTimeErrorCode | RequestTimeErrorCode;
+
+/** REQ-045, request-time table. The only statuses a mock error may ever use. */
+export const REQUEST_TIME_STATUS: Readonly<Record<RequestTimeErrorCode, number>> = {
+  ROUTE_NOT_FOUND: 404,
+  METHOD_NOT_ALLOWED: 405,
+  MALFORMED_REQUEST_BODY: 400,
+  UNSUPPORTED_REQUEST_MEDIA_TYPE: 415,
+  REQUEST_VALIDATION_FAILED: 422,
+  INVALID_PREFER_HEADER: 400,
+  NO_RESPONSE_FOR_STATUS: 400,
+  EXAMPLE_NOT_FOUND: 400,
+  NO_SUPPORTED_MEDIA_TYPE: 406,
+  GENERATION_FAILED: 500,
+};
+
+function statusFor(code: MockErrorCode): number {
+  const status = (REQUEST_TIME_STATUS as Record<string, number | undefined>)[code];
+  // Load-time codes never reach HTTP; 500 is a placeholder no requirement may depend on (REQ-008).
+  return status ?? 500;
+}
 
 export interface MockErrorBody {
   code: MockErrorCode;
@@ -35,25 +63,28 @@ export interface MockErrorBody {
   details?: unknown;
 }
 
+export interface MockErrorOptions {
+  pointer?: string;
+  details?: unknown;
+  cause?: unknown;
+}
+
 export class MockError extends Error {
   readonly code: MockErrorCode;
   readonly status: number;
   readonly pointer?: string;
   readonly details?: unknown;
 
-  constructor(
-    code: MockErrorCode,
-    message: string,
-    options: { status?: number; pointer?: string; details?: unknown; cause?: unknown } = {},
-  ) {
+  constructor(code: MockErrorCode, message: string, options: MockErrorOptions = {}) {
     super(message, options.cause === undefined ? undefined : { cause: options.cause });
     this.name = 'MockError';
     this.code = code;
-    this.status = options.status ?? 500;
+    this.status = statusFor(code);
     if (options.pointer !== undefined) this.pointer = options.pointer;
     if (options.details !== undefined) this.details = options.details;
   }
 
+  /** REQ-042: exactly these members, and no others. */
   toBody(): MockErrorBody {
     const body: MockErrorBody = { code: this.code, message: this.message };
     if (this.pointer !== undefined) body.pointer = this.pointer;
