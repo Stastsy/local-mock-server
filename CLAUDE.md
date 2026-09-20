@@ -29,6 +29,18 @@ It is detected by the orchestrator via `git diff --name-only` and reverted.
 In particular: the Developer **must not create, edit, delete, rename or skip** anything under
 `qa/`. Reading those files and running them is expected and encouraged; changing them is not.
 
+### How this is actually enforced — learned the hard way
+
+- The `tools:` field in an agent definition restricts **which tools** an agent may call. It is
+  **not** a path restriction: nothing in it prevents writing to a directory the agent does not own.
+- Agent definitions are read **at session start**. Files added to `.claude/agents/` during a session
+  do not apply to that session — the agent runs unrestricted, following its role file as advice.
+- The only boundary that actually held on this project was `git diff --name-only` run by the
+  orchestrator between stages, because it is mechanical and executes outside the agent.
+
+Treat every rule in this file as a request an agent may fail to honour, and verify mechanically.
+See D-003 in `docs/DECISIONS.md` for the incident this is drawn from.
+
 ## Non-negotiable invariants
 
 1. **OpenAPI 3.0.x only.** 3.1.x and Swagger 2.0 are rejected at load time with
