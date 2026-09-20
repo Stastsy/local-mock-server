@@ -55,6 +55,21 @@ mock-server --spec <path> [options]
 
 The format is detected from the file's contents, not its extension.
 
+## Try it in Postman
+
+Import [examples/local-mock-server.postman_collection.json](examples/local-mock-server.postman_collection.json).
+It has three folders, each carrying assertions, so **Run collection** gives pass/fail rather than
+output to squint at:
+
+| Folder | What it demonstrates |
+|---|---|
+| A | Two responses that are both `404` and mean different things |
+| B | Requests validated against the specification |
+| C | Determinism, and why two different requests draw independently |
+
+Folder C compares responses to each other, so run it top to bottom. The collection expects the
+server started with `--seed 42`; the interesting part of each response is the **Headers** tab.
+
 ## Steering the mock
 
 Control is by the `Prefer` request header only, so it can never collide with a query parameter the

@@ -1,0 +1,171 @@
+{
+  "info": {
+    "_postman_id": "8f3a1c40-5c2e-4c7a-9f1b-2d6e7a0b4c11",
+    "name": "local-mock-server — manual verification",
+    "description": "Three scenarios that exercise the design decisions behind this mock server.\n\nBefore you run, start the server from the project root:\n\nnpm run dev -- --spec examples/petstore.yaml --port 4010 --seed 42 --log-level silent\n\nEach request carries assertions, so Run collection gives you pass/fail. The interesting part of every response is in the Headers tab, not only the body.\n\nFolder C compares responses to each other and therefore depends on run order.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:4010", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "A. Two different 404s (REQ-046)",
+      "item": [
+        {
+          "name": "A1 - documented example is served verbatim",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/pets/1", "host": ["{{baseUrl}}"], "path": ["pets", "1"] },
+            "description": "GET /pets/{petId} declares an examples map, so the payload comes from the document rather than the generator. Expect X-Mock-Payload: example and no X-Mock-Seed."
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200', function () { pm.response.to.have.status(200); });",
+            "pm.test('came from the specification', function () { pm.expect(pm.response.headers.get('X-Mock-Source')).to.eql('specification'); });",
+            "pm.test('payload is an example, not generated', function () { pm.expect(pm.response.headers.get('X-Mock-Payload')).to.eql('example'); });",
+            "pm.test('no seed on an example payload', function () { pm.expect(pm.response.headers.get('X-Mock-Seed')).to.be.undefined; });",
+            "pm.test('body is the documented example', function () { pm.expect(pm.response.json().name).to.eql('Rex'); });"
+          ] } }]
+        },
+        {
+          "name": "A2 - Prefer code=404 selects the documented 404",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Prefer", "value": "code=404" }],
+            "url": { "raw": "{{baseUrl}}/pets/1", "host": ["{{baseUrl}}"], "path": ["pets", "1"] },
+            "description": "Prefer is the only control channel, so it can never collide with a query parameter the spec declares. This 404 is the one the specification documents."
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('404', function () { pm.response.to.have.status(404); });",
+            "pm.test('came from the specification', function () { pm.expect(pm.response.headers.get('X-Mock-Source')).to.eql('specification'); });",
+            "pm.test('served as plain JSON, not problem+json', function () { pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'); });",
+            "pm.test('body is the documented error example', function () { pm.expect(pm.response.json().code).to.eql('NOT_FOUND'); });",
+            "pm.collectionVariables.set('a2_source', pm.response.headers.get('X-Mock-Source'));"
+          ] } }]
+        },
+        {
+          "name": "A3 - an undocumented route is the mock's own error",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/nosuchpath", "host": ["{{baseUrl}}"], "path": ["nosuchpath"] },
+            "description": "Same status as A2, different meaning. Distinguishable by X-Mock-Source, by Content-Type, and by the body code member - any one of the three is sufficient."
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('404', function () { pm.response.to.have.status(404); });",
+            "pm.test('came from the mock itself', function () { pm.expect(pm.response.headers.get('X-Mock-Source')).to.eql('mock'); });",
+            "pm.test('served as problem+json', function () { pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'); });",
+            "pm.test('body carries a mock error code', function () { pm.expect(pm.response.json().code).to.eql('ROUTE_NOT_FOUND'); });",
+            "pm.test('distinguishable from A2 by source alone', function () {",
+            "  var a2 = pm.collectionVariables.get('a2_source');",
+            "  pm.expect(a2, 'run A2 first').to.eql('specification');",
+            "  pm.expect(pm.response.headers.get('X-Mock-Source')).to.not.eql(a2);",
+            "});"
+          ] } }]
+        }
+      ]
+    },
+    {
+      "name": "B. Request validation (REQ-019, REQ-020)",
+      "item": [
+        {
+          "name": "B1 - query parameter above its maximum",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/pets?limit=999", "host": ["{{baseUrl}}"], "path": ["pets"], "query": [{ "key": "limit", "value": "999" }] },
+            "description": "The spec declares limit with maximum 100. Expect 422 with a details array naming the parameter and the constraint it broke."
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('422, not 400', function () { pm.response.to.have.status(422); });",
+            "pm.test('came from the mock itself', function () { pm.expect(pm.response.headers.get('X-Mock-Source')).to.eql('mock'); });",
+            "pm.test('validation error code', function () { pm.expect(pm.response.json().code).to.eql('REQUEST_VALIDATION_FAILED'); });",
+            "pm.test('details say what was wrong', function () { pm.expect(pm.response.json().details).to.be.an('array').that.is.not.empty; });"
+          ] } }]
+        },
+        {
+          "name": "B2 - query parameter outside its enum",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/pets?status=purple", "host": ["{{baseUrl}}"], "path": ["pets"], "query": [{ "key": "status", "value": "purple" }] },
+            "description": "status is an enum of available, pending, sold."
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('422', function () { pm.response.to.have.status(422); });",
+            "pm.test('validation error code', function () { pm.expect(pm.response.json().code).to.eql('REQUEST_VALIDATION_FAILED'); });",
+            "pm.test('details name the query parameter', function () { pm.expect(JSON.stringify(pm.response.json().details)).to.include('status'); });"
+          ] } }]
+        },
+        {
+          "name": "B3 - a valid request still works (control)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/pets?limit=5", "host": ["{{baseUrl}}"], "path": ["pets"], "query": [{ "key": "limit", "value": "5" }] },
+            "description": "Without this control it is impossible to tell strict validation from a broken endpoint."
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200', function () { pm.response.to.have.status(200); });",
+            "pm.test('came from the specification', function () { pm.expect(pm.response.headers.get('X-Mock-Source')).to.eql('specification'); });",
+            "pm.test('body is a non-empty array of pets', function () { pm.expect(pm.response.json()).to.be.an('array').that.is.not.empty; });"
+          ] } }]
+        }
+      ]
+    },
+    {
+      "name": "C. Determinism and seed scope (REQ-052, REQ-054)",
+      "item": [
+        {
+          "name": "C1 - generated payload, note the seed",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/pets?limit=3", "host": ["{{baseUrl}}"], "path": ["pets"], "query": [{ "key": "limit", "value": "3" }] },
+            "description": "GET /pets declares no example, so the payload is generated and carries the effective seed. With --seed 42 this should be 2220222242."
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('200', function () { pm.response.to.have.status(200); });",
+            "pm.test('payload was generated', function () { pm.expect(pm.response.headers.get('X-Mock-Payload')).to.eql('generated'); });",
+            "pm.test('a seed is published', function () { pm.expect(pm.response.headers.get('X-Mock-Seed')).to.match(/^[0-9]+$/); });",
+            "pm.collectionVariables.set('c1_seed', pm.response.headers.get('X-Mock-Seed'));",
+            "pm.collectionVariables.set('c1_body', pm.response.text());"
+          ] } }]
+        },
+        {
+          "name": "C2 - the same request repeats byte for byte",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/pets?limit=3", "host": ["{{baseUrl}}"], "path": ["pets"], "query": [{ "key": "limit", "value": "3" }] },
+            "description": "Identical to C1. The body must be identical too - this is the determinism guarantee."
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "var seed = pm.collectionVariables.get('c1_seed');",
+            "var body = pm.collectionVariables.get('c1_body');",
+            "pm.test('C1 has been run', function () { pm.expect(seed, 'run C1 first').to.be.a('string').that.is.not.empty; });",
+            "pm.test('same seed as C1', function () { pm.expect(pm.response.headers.get('X-Mock-Seed')).to.eql(seed); });",
+            "pm.test('byte-identical body', function () { pm.expect(pm.response.text()).to.eql(body); });"
+          ] } }]
+        },
+        {
+          "name": "C3 - a different request draws independently",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/pets?limit=4", "host": ["{{baseUrl}}"], "path": ["pets"], "query": [{ "key": "limit", "value": "4" }] },
+            "description": "Only the query string differs. The effective seed is derived from the request identity, so it must differ from C1. With --seed 42 this should be 2281214932."
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "var seed = pm.collectionVariables.get('c1_seed');",
+            "pm.test('C1 has been run', function () { pm.expect(seed, 'run C1 first').to.be.a('string').that.is.not.empty; });",
+            "pm.test('payload was generated', function () { pm.expect(pm.response.headers.get('X-Mock-Payload')).to.eql('generated'); });",
+            "pm.test('seed differs from C1', function () { pm.expect(pm.response.headers.get('X-Mock-Seed')).to.not.eql(seed); });",
+            "pm.test('body differs from C1', function () { pm.expect(pm.response.text()).to.not.eql(pm.collectionVariables.get('c1_body')); });"
+          ] } }]
+        }
+      ]
+    }
+  ]
+}
