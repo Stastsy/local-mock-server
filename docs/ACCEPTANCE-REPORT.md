@@ -5,8 +5,16 @@ Owner: Orchestrator. Produced at the close of the MVP, from the state committed 
 ## Verdict
 
 **Accepted.** All 58 requirements are implemented and covered by the independent acceptance suite.
-Full regression is green: **369 tests pass** (269 acceptance, 100 unit), `tsc --noEmit` is clean, and
-the result reproduced across three separate runs.
+Full regression is green: **387 tests pass** (284 acceptance, 103 unit), `tsc --noEmit` is clean.
+
+This verdict reflects a second hardening round completed after the MVP was first declared done. An
+independent external review — three Codex-based reviewers assessing implementation, requirements and
+tests, and process separately, prompts and reports kept in the sibling `../mock-server-reviewer`
+project — was commissioned deliberately, to find out whether the project's own acceptance claims
+would survive someone outside the process trying to break them. Two things did not survive: a
+defect in the code and an error in this report's own traceability matrix. Both are fixed; both are
+recorded below and in the process notes, because a report that silently corrects itself is less
+trustworthy than one that shows what was wrong and how it was found.
 
 ## How this was verified
 
@@ -25,29 +33,36 @@ recorded in the process notes at the end.
 | Regression | `npm test`, three separate runs | 369 passed each time |
 | End to end | real CLI against `examples/petstore.yaml`, curl-equivalent requests | behaves as specified |
 | Meta-schema relaxation is surgical | four invalid fixtures loaded directly through `createServer` | all still rejected |
+| Meta-schema relaxation is scoped correctly | Parameter and Header Objects with `example`+`examples`, loaded directly, after the fix | both rejected; the Media Type Object tolerance and the false-positive schema-property case still load |
+| Traceability matrix is accurate | every count below rebuilt from the test runner's own output, by requirement id taken from the *start* of each test name | matches this table; the previous version did not (see process notes) |
 
-The last row is the one worth keeping. The tolerated `example`/`examples` combination (D-006) is
-implemented by validating a sanitised copy of the document. Had that been implemented by disabling
-meta-schema validation instead, the new tests would still have passed while REQ-004's main behaviour
-was silently broken — so it was checked directly rather than inferred from a green suite.
+The relaxation row is the one worth keeping from the first round. The tolerated `example`/`examples`
+combination (D-006) is implemented by validating a sanitised copy of the document. Had that been
+implemented by disabling meta-schema validation instead, the new tests would still have passed while
+REQ-004's main behaviour was silently broken — so it was checked directly rather than inferred from a
+green suite. The external review found that check had not gone far enough: the relaxation reached
+Parameter Objects too, which REQ-004 does not permit. Fixed in `41f7799`, and reverified the same way
+— directly, not by trusting the new test alone.
 
 ## Traceability matrix
 
 Every acceptance test name begins with the requirement id it covers, which is what makes this table
-derivable rather than hand-maintained. Counts come from the test runner's own output.
+derivable rather than hand-maintained. Counts come from the test runner's own output, attributed by
+the *first* requirement id in each test name — the previous version of this table used the *last*
+id and silently misattributed one test each for REQ-004 and REQ-033 (see process notes).
 
 | Requirement | Title | Tests | Status |
 |---|---|---|---|
 | REQ-001 | The specification file must exist and be readable | 4 | Passed |
 | REQ-002 | YAML and JSON specifications are both accepted | 2 | Passed |
 | REQ-003 | Only OpenAPI 3.0.x is accepted (D-001) | 11 | Passed |
-| REQ-004 | The document must be a valid OpenAPI 3.0 document, with one tolerated exception | 5 | Passed |
+| REQ-004 | The document must be a valid OpenAPI 3.0 document, with one tolerated exception | 8 | Passed |
 | REQ-005 | Internal `$ref` is resolved; an unresolvable `$ref` is a load-time failure | 3 | Passed |
 | REQ-006 | Configuration is validated, and documented defaults apply | 9 | Passed |
 | REQ-007 | Fail fast: a specification problem never binds a port (`CLAUDE.md` invariant 5) | 3 | Passed |
 | REQ-008 | Load-time errors are actionable | 5 | Passed |
-| REQ-009 | Unsupported constructs are rejected at load time with a structured report | 3 | Passed |
-| REQ-010 | The rejected constructs, and their tokens | 8 | Passed |
+| REQ-009 | Unsupported constructs are rejected at load time with a structured report | 8 | Passed |
+| REQ-010 | The rejected constructs, and their tokens | 16 | Passed |
 | REQ-011 | All unsupported constructs are reported in one error | 2 | Passed |
 | REQ-012 | Accepted-but-ignored constructs never fail the load | 7 | Passed |
 | REQ-013 | Every documented operation is routed at its path template | 4 | Passed |
@@ -70,7 +85,7 @@ derivable rather than hand-maintained. Counts come from the test runner's own ou
 | REQ-030 | Media type selection prefers `application/json` | 4 | Passed |
 | REQ-031 | A selected response with content but no JSON media type is `406` | 2 | Passed |
 | REQ-032 | A response with no content is served with an empty body | 2 | Passed |
-| REQ-033 | Payload precedence within the selected media type | 8 | Passed |
+| REQ-033 | Payload precedence within the selected media type | 7 | Passed |
 | REQ-034 | `Prefer: example=<name>` selects a named example | 5 | Passed |
 | REQ-035 | `Prefer` parsing rules | 14 | Passed |
 | REQ-036 | An applied preference is echoed in `Preference-Applied` | 3 | Passed |
@@ -97,18 +112,19 @@ derivable rather than hand-maintained. Counts come from the test runner's own ou
 | REQ-057 | Silence by default | 1 | Passed |
 | REQ-058 | Startup cost | 1 | Passed |
 
-**58 requirements, 269 acceptance tests, none uncovered.**
+**58 requirements, 284 acceptance tests, none uncovered.**
 
 ## Execution summary
 
 | Suite | Files | Tests | Result |
 |---|---|---|---|
-| `npm run test:unit` | 6 | 100 | passed |
-| `npm run test:acceptance` | 11 | 269 | passed |
-| `npm test` | 17 | 369 | passed |
+| `npm run test:unit` | 7 | 103 | passed |
+| `npm run test:acceptance` | 11 | 284 | passed |
+| `npm test` | 18 | 387 | passed |
 
-Acceptance runs take roughly 20 seconds. Each test binds a real ephemeral port and speaks HTTP over
-it; no test uses an in-process injection shortcut.
+Acceptance runs take roughly 25 seconds. Each test binds a real ephemeral port and speaks HTTP over
+it; no test uses an in-process injection shortcut. The second-round additions — 15 acceptance tests
+and 3 unit tests — are described in the process notes below and in `docs/TEST-PLAN.md` §6.8.
 
 ## Known limitations
 
@@ -149,6 +165,38 @@ the document; all three surfaced from trying to assert against it.
 **Implementing found a fourth.** REQ-033's precedence rule for a media type declaring both `example`
 and `examples` could not coexist with REQ-004's meta-schema enforcement, because the meta-schema
 forbids that combination outright. Resolved as D-006.
+
+**D-006's resolution was implemented before it was approved.** The workaround landed in the
+implementation commit (`8717784`); the requirement amendment and its tests followed three commits
+later. The project's own account of this at the time said the Developer "reported" the conflict
+rather than resolving it unilaterally, which is true, but the sequence still means this one piece of
+behaviour was not test-first in the way the rest of the project was — the code existed before the
+specification it was checked against. This is recorded here because the original acceptance report
+did not name it as an exception to test-first, and should have; an external review found it in the
+git history months after acceptance, and it did not need to.
+
+**A second, independent review found two more things after acceptance.** Commissioned deliberately
+(see the verdict above) rather than requested by any finding in this report, three Codex-based
+reviewers working from `../mock-server-reviewer` found:
+
+- **A real defect.** REQ-004's tolerance reached further than the requirement allowed — Parameter
+  Objects declaring both `example` and `examples` loaded when they should have been rejected with
+  `SPEC_INVALID`. Verified directly, then closed the way the rest of this project works: QA wrote a
+  failing test pinning the exact boundary and the Developer narrowed the relaxation to Media Type
+  Objects only — `f8c6760`, `41f7799`.
+- **A clarification, not a defect.** Capability checking only examines what an operation can reach;
+  a rejected construct sitting in a `components` member nothing references loads successfully. The
+  behaviour was intentional but the requirements did not say so. REQ-009 and REQ-010 now state the
+  scope explicitly (`7054d82`), with `externalRef` and `circularRef` named as the two whole-document
+  exceptions — properties of the document's `$ref` graph rather than of an operation, and already,
+  correctly, checked everywhere.
+- **An error in this report.** The traceability matrix below previously attributed 5 tests to
+  REQ-004 and 8 to REQ-033; the actual counts were 6 and 7. The cause was a naive extraction script
+  that took the *last* requirement id mentioned in a test's full name rather than the first — and
+  one test's name mentions both (`REQ-004: tolerates example and examples … serves the REQ-033
+  payload`). The total, 269, was coincidentally correct, which is exactly why the error went
+  unnoticed: a matrix can be wrong in a way its only checked invariant does not catch. Fixed below
+  by re-deriving every count against the *first* id in each name.
 
 **Two agent claims did not survive verification.** The QA engineer reported REQ-018's sixth rule as
 untestable, having failed to construct a string that passes OpenAPI validation but fails URL parsing;
