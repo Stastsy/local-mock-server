@@ -1,0 +1,28 @@
+# REQ-009: the twin of `reachability-unreferenced-cookie-parameter.yaml` with the unreferenced
+# `components` block removed. REQ-009 requires that a document carrying a rejected construct in an
+# unreferenced component be served "exactly as it would be had the unreferenced component been
+# absent from the document" -- this file is that absence, so the two can be compared response for
+# response under one seed.
+openapi: 3.0.3
+info:
+  title: Reachability baseline
+  version: 1.0.0
+paths:
+  /pets:
+    get:
+      operationId: listPets
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id, name]
+                properties:
+                  id:
+                    type: integer
+                    minimum: 1
+                  name:
+                    type: string
+                    minLength: 1

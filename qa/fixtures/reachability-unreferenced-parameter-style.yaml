@@ -1,0 +1,37 @@
+# REQ-010: `components.parameters.Tags` declares a non-default `style` for its location -- token
+# `parameterStyle` -- and nothing under `paths` references it, so the document must load.
+openapi: 3.0.3
+info:
+  title: Unreferenced parameter style
+  version: 1.0.0
+paths:
+  /pets:
+    get:
+      operationId: listPets
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id, name]
+                properties:
+                  id:
+                    type: integer
+                    minimum: 1
+                  name:
+                    type: string
+                    minLength: 1
+components:
+  parameters:
+    Tags:
+      name: tags
+      in: query
+      required: false
+      style: pipeDelimited
+      explode: false
+      schema:
+        type: array
+        items:
+          type: string

@@ -1,0 +1,30 @@
+# REQ-009, REQ-010: the first of the two exceptions to reachability scoping. `externalRef` is a
+# property of the document's `$ref` graph rather than of an operation, so it is rejected wherever
+# it occurs -- here inside a `components.schemas` member that nothing under `paths` references.
+openapi: 3.0.3
+info:
+  title: Unreferenced external ref
+  version: 1.0.0
+paths:
+  /pets:
+    get:
+      operationId: listPets
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id, name]
+                properties:
+                  id:
+                    type: integer
+                    minimum: 1
+                  name:
+                    type: string
+                    minLength: 1
+components:
+  schemas:
+    Remote:
+      $ref: './common.yaml#/components/schemas/Pet'

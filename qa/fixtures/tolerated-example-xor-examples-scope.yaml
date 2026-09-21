@@ -1,0 +1,42 @@
+# REQ-004, positive control: the green half of a minimal pair with
+# `invalid-parameter-example-xor-examples.yaml`, which is this document plus a single `example:`
+# key on the query parameter.
+#
+# Here the MEDIA TYPE object declares both `example` and `examples` -- the one `ExampleXORExamples`
+# violation REQ-004 tolerates -- while the PARAMETER object declares `examples` alone, which is
+# valid. The document must therefore load and serve, which is what makes the rejection asserted by
+# the red half attributable to the parameter's `example` key and to nothing else.
+openapi: 3.0.3
+info:
+  title: Tolerated example XOR examples, media type only
+  version: 1.0.0
+paths:
+  /both:
+    get:
+      operationId: getBoth
+      parameters:
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+          examples:
+            one:
+              value: alpha
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [p]
+                properties:
+                  p:
+                    type: string
+              example:
+                p: content-example
+              examples:
+                named:
+                  value:
+                    p: named-entry

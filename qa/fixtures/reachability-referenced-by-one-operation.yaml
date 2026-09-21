@@ -1,0 +1,47 @@
+# REQ-009: three operations across two paths; exactly one of them references
+# `components.parameters.Session`. One reference from anywhere under `paths` is enough, so the
+# whole document is rejected with `UNSUPPORTED_CONSTRUCT`, token `cookieParameter`.
+openapi: 3.0.3
+info:
+  title: Cookie parameter referenced by one operation of several
+  version: 1.0.0
+paths:
+  /pets:
+    get:
+      operationId: listPets
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+    post:
+      operationId: createPet
+      responses:
+        '201':
+          description: created
+          content:
+            application/json:
+              schema:
+                type: object
+  /owners:
+    get:
+      operationId: listOwners
+      parameters:
+        - $ref: '#/components/parameters/Session'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+components:
+  parameters:
+    Session:
+      name: session
+      in: cookie
+      required: false
+      schema:
+        type: string

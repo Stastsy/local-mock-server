@@ -1,0 +1,37 @@
+# REQ-009, REQ-010: `components.parameters.Session` declares `in: cookie`, which REQ-010 rejects
+# with token `cookieParameter` -- but no path item and no operation references it, so REQ-009
+# scopes the capability check past it and the document must load and serve.
+#
+# Paired with `reachability-baseline.yaml` (this document without the component) and with
+# `reachability-referenced-cookie-parameter.yaml` (this document with one `$ref` added).
+openapi: 3.0.3
+info:
+  title: Unreferenced cookie parameter
+  version: 1.0.0
+paths:
+  /pets:
+    get:
+      operationId: listPets
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id, name]
+                properties:
+                  id:
+                    type: integer
+                    minimum: 1
+                  name:
+                    type: string
+                    minLength: 1
+components:
+  parameters:
+    Session:
+      name: session
+      in: cookie
+      required: false
+      schema:
+        type: string

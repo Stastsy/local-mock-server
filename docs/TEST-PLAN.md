@@ -8,6 +8,12 @@ At the time of writing, no implementation exists: `src/` is a bootstrap skeleton
 `501 NOT_IMPLEMENTED` to every request. The suite was written against the requirements alone and
 run to confirm that each test fails for a reason the implementation will have to fix.
 
+**Second round (2026-09-21).** Fifteen tests and twelve fixtures were added after an external
+review of the finished project, not while writing the original suite: two tests pin the boundary of
+REQ-004's tolerated meta-schema exception — one of which is **red on purpose**, ahead of the fix —
+and thirteen cover the reachability scoping the REQ-009/REQ-010 amendment made explicit. §6.8
+records the round; §8 records the one expected failure.
+
 ---
 
 ## 1. Strategy
@@ -52,9 +58,17 @@ a seeded value.
 
 ### 1.3 Fixtures are small and single-purpose
 
-53 fixtures in `qa/fixtures/`, one concern each — a valid minimal API, one rejected construct per
+65 fixtures in `qa/fixtures/`, one concern each — a valid minimal API, one rejected construct per
 file, one `servers[0].url` shape per file, one payload-precedence case per operation. A failure
-therefore names its own cause. `examples/petstore.yaml` is used directly wherever a requirement is
+therefore names its own cause.
+
+Where a requirement turns on *where* a construct sits rather than on the construct itself, the
+fixtures are written as **minimal pairs** that differ by one key or one line, so the difference in
+outcome has only one possible cause: `tolerated-example-xor-examples-scope.yaml` versus
+`invalid-parameter-example-xor-examples.yaml` (one `example:` key on a parameter, REQ-004), and
+`reachability-baseline.yaml` → `reachability-unreferenced-cookie-parameter.yaml` →
+`reachability-referenced-cookie-parameter.yaml` (a `components` member, then one `$ref` to it,
+REQ-009). `examples/petstore.yaml` is used directly wherever a requirement is
 written against it (REQ-002, REQ-013..REQ-017, REQ-019..REQ-024, REQ-033, REQ-034, REQ-046,
 REQ-052..REQ-058), and `qa/fixtures/petstore-as-json.txt` is its byte-equivalent JSON form saved
 with a non-JSON extension, which is what makes REQ-002 a real test of content sniffing.
@@ -90,8 +104,11 @@ the test names by the runner's JSON reporter, not maintained by hand, so it cann
 
 ## 3. Sizing
 
-The requirements carry 201 acceptance criteria after the Stage-2 amendments to REQ-044, REQ-051,
-REQ-052, REQ-054 and — during implementation — REQ-004 and REQ-033; the suite has **269 tests**.
+The requirements carried 201 acceptance criteria after the Stage-2 amendments to REQ-044, REQ-051,
+REQ-052, REQ-054 and — during implementation — REQ-004 and REQ-033, and carry ten more after the
+REQ-009/REQ-010 amendment of 2026-09-21. (That amendment counts the totals as 202 → 212; this plan
+counted 201 before it. The two hand counts differ by one criterion, and nothing in the suite depends
+on either number.) The suite has **284 tests**.
 The default is one test per criterion. The excess is entirely equivalence-class expansion of single criteria, never
 combinatorial exploration of several criteria together:
 
@@ -100,6 +117,9 @@ combinatorial exploration of several criteria together:
 | REQ-003 "a document with `openapi: 3.0.0`, `3.0.1`, `3.0.2`, `3.0.3` or `3.0.4` resolves" | 5 | Five distinct version strings in one sentence; a single test would hide which patch level regressed. |
 | REQ-004 "for example an operation with no `responses`, a `paths` key not beginning with `/`, or an unknown root field" | 3 | Three structurally different violations of the same rule. |
 | REQ-010 "each criterion below is a separate specification fixture and a separate test" | 8 | Stated by the requirement itself. |
+| REQ-010 "the same holds for the four other tokens that are scoped by reachability" | 5 | One criterion naming five tokens; a single fixture carrying all five would not say which check is unscoped. |
+| REQ-010 "and, by REQ-009, not for `externalRef` or `circularRef`" | 2 | The two whole-document exceptions, one fixture each. |
+| REQ-004 "the `ExampleXORExamples` constraint **on the Media Type Object**" | 2 | The relaxation is scoped to one object type; the boundary needs a case on each side of it. |
 | REQ-035 "`code=abc`, `code=40`, `code=1000`, `code=` or `code=099`" | 5 | Five distinct malformed-value classes. |
 | REQ-035 parsing rules stated as prose (case-insensitive names, quote stripping, multi-value concatenation) | 3 | Normative rules that would otherwise be untested. |
 | REQ-038 "a schema using `allOf`, `oneOf` or `anyOf`" | 3 | Three keywords with three different generator paths; `oneOf`/`anyOf` are flagged in REQUIREMENTS §9.4 as the least predictable. |
@@ -147,20 +167,20 @@ Test files mirror requirement groups, so a failing group is diagnosable from the
 
 ## 5. Traceability matrix
 
-Derived from test names. 269 tests, 58 of 58 requirements covered, **no requirement with zero tests**.
+Derived from test names. 284 tests, 58 of 58 requirements covered, **no requirement with zero tests**.
 
 | Requirement | Tests | Spec file |
 |---|---|---|
 | REQ-001 | 4 | `spec-loading.spec.ts` |
 | REQ-002 | 2 | `spec-loading.spec.ts` |
 | REQ-003 | 11 | `spec-loading.spec.ts` |
-| REQ-004 | 6 | `spec-loading.spec.ts` |
+| REQ-004 | 8 | `spec-loading.spec.ts` |
 | REQ-005 | 3 | `spec-loading.spec.ts` |
 | REQ-006 | 9 | `spec-loading.spec.ts` |
 | REQ-007 | 3 | `spec-loading.spec.ts` |
 | REQ-008 | 5 | `spec-loading.spec.ts` |
-| REQ-009 | 3 | `capabilities.spec.ts` |
-| REQ-010 | 8 | `capabilities.spec.ts` |
+| REQ-009 | 8 | `capabilities.spec.ts` |
+| REQ-010 | 16 | `capabilities.spec.ts` |
 | REQ-011 | 2 | `capabilities.spec.ts` |
 | REQ-012 | 7 | `capabilities.spec.ts` |
 | REQ-013 | 4 | `routing.spec.ts` |
@@ -225,6 +245,12 @@ and group `assertionResults[].title` by its first seven characters.
 Five items were raised against `docs/REQUIREMENTS.md` — four by QA in the first draft of this plan,
 one by the Developer during implementation. Four were genuine gaps in the requirements and have been
 amended; one was a mistake in this suite. Nothing in `docs/REQUIREMENTS.md` was edited by QA.
+
+§6.1–§6.5 are the **first round**, raised while writing the suite. §6.8 is a **second round**,
+raised after the project was declared complete, by an independent external review rather than by
+this suite, and worked the other way round: it started from observed behaviour and asked what the
+requirements actually said about it. §6.6 and §6.7 are neither — they record two criteria this
+suite deliberately does not assert.
 
 ### 6.1 REQ-054 and REQ-052 named an operation that could not satisfy their criteria — **amended**
 
@@ -307,6 +333,52 @@ the matrix is deliberate rather than an omission.
 
 REQ-057 therefore has one test, not two.
 
+### 6.8 Second round: two findings from an independent external review — **one defect, one amendment**
+
+Raised by a Codex-based reviewer working from `docs/REQUIREMENTS.md` against the finished project,
+and confirmed by the orchestrator before it reached QA. Unlike §6.1–§6.5, neither finding was
+visible from the requirements alone: both are places where the suite had tested a rule in the
+position it was written in and not in the positions it was *not* written in. The lesson carried
+forward is in §1.3 — where a rule is scoped to a location, test the other side of that boundary.
+
+**Finding 1 — REQ-004's tolerance is wider in the implementation than in the requirement. Defect.**
+REQ-004 relaxes `ExampleXORExamples` on the **Media Type Object** and says "no other meta-schema
+constraint is relaxed". The same constraint applies to the Parameter Object, where it is not
+relaxed — but a document whose *parameter* declares both `example` and `examples` currently loads
+and is served. Two tests were added, a minimal pair that differs by one key:
+
+- `REQ-004: rejects example and examples on a parameter object with SPEC_INVALID`
+  (`invalid-parameter-example-xor-examples.yaml`) — **currently failing on its assertion**, written
+  before the fix as the project's test-first discipline requires. It is the only red test in the
+  suite.
+- `REQ-004: the tolerance covers the media type object only, so a parameter with examples alone
+  loads` (`tolerated-example-xor-examples-scope.yaml`) — the positive control, green. Both fixtures
+  carry the tolerated combination on the media type object, so the pair isolates *where* the second
+  copy sits as the only difference between loading and rejecting.
+
+The pre-existing `REQ-004: tolerates example and examples on the same media type …` stays as it
+was, on its own single-violation fixture. QA did not touch `src/`; the fix is the Developer's.
+
+**Finding 2 — REQ-009/REQ-010 did not say that capability checking is scoped to `paths`.
+Requirement clarified, behaviour unchanged.** A rejected construct in an unreferenced `components`
+member loads; the same construct referenced from an operation is rejected. The amendment of
+2026-09-21 (REQUIREMENTS §8.1 row 7) states the rule and names `externalRef` and `circularRef` as
+whole-document exceptions. Thirteen tests were added for the new criteria over ten fixtures:
+five under REQ-009 (unreferenced load; served identically to the same document with the component
+deleted; reached through `$ref` rejects; one reference out of several operations is enough; the
+inline control) and eight under REQ-010 (the `$ref`-reached pointer and token; the five
+reachability-scoped tokens unreferenced; the two `$ref`-graph tokens still rejected unreferenced).
+All thirteen passed on their first run against the shipped implementation, which is the expected
+outcome for a clarification of shipped behaviour — had one failed it would have been a new defect,
+not a test to soften.
+
+**One wording point is left open, and the suite does not resolve it.** REQ-010 says the reported
+`pointer` "locates the parameter as the operation reaches it". That reads equally well as the
+operation's parameter slot (`#/paths/~1pets/get/parameters/0`) or as the component's own location
+(`#/components/parameters/Session`). The test asserts what both readings require — a pointer
+beginning `#/` that names a parameter — rather than choosing one. If the Business Analyst wants the
+stricter reading, one word settles it and the assertion can be tightened.
+
 ## 7. Known limitations
 
 1. **The body validator shares libraries with the implementation.** Response bodies are validated
@@ -342,7 +414,15 @@ REQ-057 therefore has one test, not two.
 6. **No test covers request or response bodies larger than a few kilobytes, nor any performance
    characteristic beyond startup time.** REQUIREMENTS §7 excludes both.
 
-7. **`Prefer` header field folding is tested through a single header.** REQ-035 says all `Prefer`
+7. **The Header Object side of `ExampleXORExamples` is untested.** OpenAPI 3.0 applies that
+   constraint to three objects: Media Type, Parameter and Header. §6.8 adds the Parameter Object
+   case; the Header Object case — a `responses[*].headers[*]` declaring both `example` and
+   `examples` — has no fixture. It was left out on purpose so that the run has exactly the one
+   expected failure, and because REQ-012 ignores documented response headers entirely, so the
+   requirements do not say whether such a document should be refused for a header the server never
+   emits. Worth a decision from the Business Analyst rather than a guess from QA.
+
+8. **`Prefer` header field folding is tested through a single header.** REQ-035 says all `Prefer`
    field values are concatenated with `,` before parsing. `fetch` does not let a test send two
    separate `Prefer` header fields, so the concatenation rule is exercised by sending one field
    containing a comma. The multi-field case is untested.
@@ -356,7 +436,22 @@ npm run test:acceptance     # the acceptance project only
 npm test                    # unit + acceptance
 ```
 
-**Against the implementation: 269 passing, 0 failing.**
+**Against the implementation: 284 tests, 283 passing, 1 failing.**
+
+The one failure is deliberate and is the current state of the project, not a flake:
+
+```
+REQ-004: rejects example and examples on a parameter object with SPEC_INVALID
+  AssertionError: createServer resolved for specPath ".../invalid-parameter-example-xor-examples.yaml";
+  expected it to reject with a MockError.
+```
+
+It is the red test of §6.8, Finding 1, written ahead of the fix. It fails on an assertion — the
+helper stops the wrongly-created server before failing, so no port leaks into the rest of the run —
+and it will go green when the loader scopes its `ExampleXORExamples` relaxation to Media Type
+Objects. **Any other failure, or this one passing while
+`REQ-004: tolerates example and examples on the same media type …` fails, means something else
+broke.**
 
 **Against the bootstrap skeleton**, which is how this suite was written and first run, the expected
 result was 267 tests with 240 failing on assertions about status, headers, body or error code and 27

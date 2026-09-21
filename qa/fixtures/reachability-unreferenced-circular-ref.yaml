@@ -1,0 +1,36 @@
+# REQ-009, REQ-010: the second exception to reachability scoping. `circularRef` is a property of
+# the document's `$ref` graph, so the cycle below is rejected even though nothing under `paths`
+# reaches `components.schemas.Node`.
+openapi: 3.0.3
+info:
+  title: Unreferenced circular ref
+  version: 1.0.0
+paths:
+  /pets:
+    get:
+      operationId: listPets
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id, name]
+                properties:
+                  id:
+                    type: integer
+                    minimum: 1
+                  name:
+                    type: string
+                    minLength: 1
+components:
+  schemas:
+    Node:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+        child:
+          $ref: '#/components/schemas/Node'

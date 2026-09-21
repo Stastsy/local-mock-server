@@ -1,0 +1,37 @@
+# REQ-009, REQ-010: `reachability-unreferenced-cookie-parameter.yaml` with one line added -- the
+# operation now reaches `components.parameters.Session` through `$ref`. Reaching a rejected
+# construct through a reference is no different from declaring it inline, so `createServer` must
+# reject with `UNSUPPORTED_CONSTRUCT`, token `cookieParameter`.
+openapi: 3.0.3
+info:
+  title: Referenced cookie parameter
+  version: 1.0.0
+paths:
+  /pets:
+    get:
+      operationId: listPets
+      parameters:
+        - $ref: '#/components/parameters/Session'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id, name]
+                properties:
+                  id:
+                    type: integer
+                    minimum: 1
+                  name:
+                    type: string
+                    minLength: 1
+components:
+  parameters:
+    Session:
+      name: session
+      in: cookie
+      required: false
+      schema:
+        type: string

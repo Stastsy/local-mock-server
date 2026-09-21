@@ -189,6 +189,35 @@ describe('REQ-004 — the document must be a valid OpenAPI 3.0 document', () => 
     }
   });
 
+  // The two tests below draw the boundary of that tolerance from both sides. Their fixtures are a
+  // minimal pair: `invalid-parameter-example-xor-examples.yaml` is
+  // `tolerated-example-xor-examples-scope.yaml` plus a single `example:` key on the query
+  // parameter. Both documents carry the tolerated combination on the media type object, so the
+  // difference in outcome can only come from where the second copy of the combination sits.
+  it('REQ-004: the tolerance covers the media type object only, so a parameter with examples alone loads', async () => {
+    const server = await startServer({ specPath: fixture('tolerated-example-xor-examples-scope.yaml') });
+    try {
+      const res = await request(server.url, '/both?q=alpha');
+      expect({ status: res.status, body: res.json, payload: res.header('x-mock-payload') }).toEqual({
+        status: 200,
+        body: { p: 'content-example' },
+        payload: 'example',
+      });
+    } finally {
+      await server.stop();
+    }
+  });
+
+  it('REQ-004: rejects example and examples on a parameter object with SPEC_INVALID', async () => {
+    // ExampleXORExamples constrains the Parameter Object exactly as it constrains the Media Type
+    // Object. REQ-004 relaxes it for the media type and states that "no other meta-schema
+    // constraint is relaxed", so this document is invalid and must not load.
+    const error = await createServerRejection({
+      specPath: fixture('invalid-parameter-example-xor-examples.yaml'),
+    });
+    expect(error.code).toBe('SPEC_INVALID');
+  });
+
   it('REQ-004: resolves for a valid 3.0.x document', async () => {
     const server = await create({ specPath: fixture('minimal.yaml'), port: 0 });
     await server.stop();

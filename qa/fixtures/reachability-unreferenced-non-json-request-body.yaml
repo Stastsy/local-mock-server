@@ -1,0 +1,33 @@
+# REQ-010: `components.requestBodies.PlainText` has no JSON media type in its `content` map --
+# token `nonJsonRequestBody` -- and nothing under `paths` references it, so the document must load.
+openapi: 3.0.3
+info:
+  title: Unreferenced non-JSON request body
+  version: 1.0.0
+paths:
+  /pets:
+    get:
+      operationId: listPets
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id, name]
+                properties:
+                  id:
+                    type: integer
+                    minimum: 1
+                  name:
+                    type: string
+                    minLength: 1
+components:
+  requestBodies:
+    PlainText:
+      required: true
+      content:
+        text/plain:
+          schema:
+            type: string

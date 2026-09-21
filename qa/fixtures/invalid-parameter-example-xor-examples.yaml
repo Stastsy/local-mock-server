@@ -1,0 +1,46 @@
+# REQ-004, negative: `tolerated-example-xor-examples-scope.yaml` plus one key -- `example: alpha`
+# on the query parameter, which already carries `examples`.
+#
+# REQ-004 relaxes `ExampleXORExamples` on the MEDIA TYPE OBJECT only, and states that "no other
+# meta-schema constraint is relaxed". The same constraint applies to the Parameter Object, where it
+# is not relaxed, so this document is not a valid OpenAPI 3.0 document and `createServer` must
+# reject it with `SPEC_INVALID`.
+#
+# The media type object below still declares both keys on purpose: it is the tolerated case, so
+# keeping it here makes the pair a true minimal pair and shows that the outcome turns on WHERE the
+# combination appears, not on the combination itself.
+openapi: 3.0.3
+info:
+  title: Parameter example XOR examples
+  version: 1.0.0
+paths:
+  /both:
+    get:
+      operationId: getBoth
+      parameters:
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+          example: alpha
+          examples:
+            one:
+              value: alpha
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [p]
+                properties:
+                  p:
+                    type: string
+              example:
+                p: content-example
+              examples:
+                named:
+                  value:
+                    p: named-entry
