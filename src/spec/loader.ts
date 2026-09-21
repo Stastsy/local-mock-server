@@ -137,19 +137,37 @@ async function validateDocument(document: OpenApiDocument, specPath: string): Pr
  * Object, but REQ-033 requires a media type that declares both to be served, with `example`
  * winning. The requirement is the authority here, so the copy handed to the validator drops the
  * member the requirement says is redundant; the document the server serves from keeps both.
+ *
+ * REQ-004 grants that tolerance to the Media Type Object alone — "no other meta-schema constraint
+ * is relaxed" — and the same `ExampleXORExamples` constraint also governs Parameter and Header
+ * Objects, where it stays enforced. The walk therefore relaxes a node only where the document's
+ * shape proves it is a media type: a value of a `content` map under a media-type key. Everything
+ * else, including a Parameter Object that happens to sit beside such a map, is handed to the
+ * validator untouched.
  */
 function relaxExampleExclusivity(document: OpenApiDocument): OpenApiDocument {
-  const walk = (node: unknown): void => {
+  const walk = (node: unknown, isMediaType: boolean): void => {
     if (Array.isArray(node)) {
-      node.forEach(walk);
+      for (const item of node) walk(item, false);
       return;
     }
     if (!isRecord(node)) return;
-    if (Object.hasOwn(node, 'example') && isRecord(node['examples'])) delete node['example'];
-    for (const value of Object.values(node)) walk(value);
+    if (isMediaType && Object.hasOwn(node, 'example') && isRecord(node['examples'])) {
+      delete node['example'];
+    }
+
+    for (const [member, value] of Object.entries(node)) {
+      if (member === 'content' && isRecord(value)) {
+        // A media type key is a media type or range, so it always carries a `/`; a Schema Object
+        // whose `properties` happen to include a `content` member never does.
+        for (const [key, entry] of Object.entries(value)) walk(entry, key.includes('/'));
+        continue;
+      }
+      walk(value, false);
+    }
   };
 
-  walk(document);
+  walk(document, false);
   return document;
 }
 
