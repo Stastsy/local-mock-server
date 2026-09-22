@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "description": "Local mock server that serves dynamic HTTP responses from an OpenAPI 3.0 specification",
+  "license": "MIT",
   "bin": {
     "mock-server": "./dist/cli.js"
   },
